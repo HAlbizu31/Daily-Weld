@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Users, FileText, BarChart3, Trash2, CheckCircle2, XCircle, X, Search, Wrench, ClipboardList, Calendar, AlertCircle, Edit2, LogOut, Shield, HardHat, Eye, LogIn, Menu, BookOpen, ShieldCheck, Thermometer, FileCheck, AlertTriangle, ChevronRight, ChevronDown, Award, Layers, Droplet, Sparkles, Link2, TrendingUp, Activity, PieChart as PieChartIcon } from "lucide-react";
+import { Plus, Users, FileText, BarChart3, Trash2, CheckCircle2, XCircle, X, Search, Wrench, ClipboardList, Calendar, AlertCircle, Edit2, LogOut, Shield, HardHat, Eye, LogIn, Menu, BookOpen, ShieldCheck, Thermometer, FileCheck, AlertTriangle, ChevronRight, ChevronDown, Award, Layers, Droplet, Sparkles, Link2, TrendingUp, Activity, PieChart as PieChartIcon, Upload, FileImage, MousePointer2, GitBranch, ZoomIn, ZoomOut, Move, Save, Download } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const STORAGE_KEY = "weld_app_v4";
@@ -927,6 +927,7 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
   const [showModal, setShowModal] = useState(false);
   const [showSystemsModal, setShowSystemsModal] = useState(false);
   const [editingIso, setEditingIso] = useState(null);
+  const [viewingIso, setViewingIso] = useState(null);
   const [expandedWelders, setExpandedWelders] = useState({});
   const [expandedSystems, setExpandedSystems] = useState({});
   const [expandedSizes, setExpandedSizes] = useState({});
@@ -988,8 +989,9 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
         </select>
       </td>
       <td className="px-5 py-3 text-right whitespace-nowrap">
-        <button onClick={() => setEditingIso(iso)} className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 mr-1"><Edit2 size={14} /></button>
-        <button onClick={() => onDelete(iso.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"><Trash2 size={14} /></button>
+        <button onClick={() => setViewingIso(iso)} className="text-slate-400 hover:text-emerald-600 p-1 rounded hover:bg-emerald-50 mr-1" title="Ver ISO"><FileImage size={14} /></button>
+        <button onClick={() => setEditingIso(iso)} className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 mr-1" title="Editar"><Edit2 size={14} /></button>
+        <button onClick={() => onDelete(iso.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50" title="Borrar"><Trash2 size={14} /></button>
       </td>
     </tr>
   );
@@ -1175,8 +1177,9 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
                                                 </select>
                                               </td>
                                               <td className="px-3 py-2 text-right whitespace-nowrap">
-                                                <button onClick={() => setEditingIso(iso)} className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 mr-1"><Edit2 size={12} /></button>
-                                                <button onClick={() => onDelete(iso.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"><Trash2 size={12} /></button>
+                                                <button onClick={() => setViewingIso(iso)} className="text-slate-400 hover:text-emerald-600 p-1 rounded hover:bg-emerald-50 mr-1" title="Ver ISO"><FileImage size={12} /></button>
+                                                <button onClick={() => setEditingIso(iso)} className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 mr-1" title="Editar"><Edit2 size={12} /></button>
+                                                <button onClick={() => onDelete(iso.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50" title="Borrar"><Trash2 size={12} /></button>
                                               </td>
                                             </tr>
                                           ))}
@@ -1237,7 +1240,8 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
                                       <Edit2 size={10} /> CLASIFICAR
                                     </button>
                                   </td>
-                                  <td className="px-3 py-2 text-right">
+                                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                                    <button onClick={() => setViewingIso(iso)} className="text-slate-400 hover:text-emerald-600 p-1 rounded hover:bg-emerald-50 mr-1" title="Ver ISO"><FileImage size={12} /></button>
                                     <button onClick={() => onDelete(iso.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"><Trash2 size={12} /></button>
                                   </td>
                                 </tr>
@@ -1258,6 +1262,7 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
       {showModal && <IsoModal onClose={() => setShowModal(false)} onSave={onAdd} welders={welders} systems={systems} />}
       {editingIso && <IsoModal onClose={() => setEditingIso(null)} onSave={(data) => { onUpdateIso(editingIso.id, data); setEditingIso(null); }} welders={welders} systems={systems} editing={editingIso} />}
       {showSystemsModal && <SystemsModal onClose={() => setShowSystemsModal(false)} systems={systems} onAdd={onAddSystem} onDelete={onDeleteSystem} />}
+      {viewingIso && <IsoViewerModal iso={viewingIso} onClose={() => setViewingIso(null)} onUpdateIso={onUpdateIso} />}
     </div>
   );
 }
@@ -2244,6 +2249,445 @@ function ChartsView({ data, getEntryRef }) {
             </Card>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+function IsoViewerModal({ iso, onClose, onUpdateIso }) {
+  const [tool, setTool] = useState("pan"); // pan, mark, arrow, text
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState(null);
+  const [revisions, setRevisions] = useState(iso.revisions || []);
+  const [activeRev, setActiveRev] = useState(0);
+  const [imageData, setImageData] = useState(iso.imageData || null);
+  const [imageDim, setImageDim] = useState({ w: 800, h: 600 });
+  const [pendingMark, setPendingMark] = useState(null);
+  const [markLabel, setMarkLabel] = useState("");
+  const fileInputRef = React.useRef(null);
+  const containerRef = React.useRef(null);
+  const imgRef = React.useRef(null);
+
+  const handleUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
+      alert("Sube una imagen (JPG, PNG) o un PDF.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      setImageData(dataUrl);
+      // Initialize Rev 0 if no revisions yet
+      if (revisions.length === 0) {
+        const rev0 = { id: "rev-0", name: "Rev 0 — Original", date: new Date().toISOString(), marks: [], locked: true };
+        setRevisions([rev0]);
+        setActiveRev(0);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const saveAll = () => {
+    onUpdateIso(iso.id, { imageData, revisions });
+    onClose();
+  };
+
+  const createRevision = () => {
+    const nextNum = revisions.length;
+    const newRev = {
+      id: `rev-${Date.now()}`,
+      name: `Rev ${nextNum} — ${new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit" })}`,
+      date: new Date().toISOString(),
+      marks: [],
+      locked: false,
+    };
+    setRevisions([...revisions, newRev]);
+    setActiveRev(revisions.length);
+  };
+
+  const deleteRevision = (idx) => {
+    if (idx === 0) { alert("No se puede borrar Rev 0 (Original)"); return; }
+    if (!confirm("¿Borrar esta revisión?")) return;
+    const newRevs = revisions.filter((_, i) => i !== idx);
+    setRevisions(newRevs);
+    setActiveRev(Math.max(0, activeRev - (idx <= activeRev ? 1 : 0)));
+  };
+
+  const handleImageClick = (e) => {
+    if (tool !== "mark") return;
+    if (revisions[activeRev]?.locked) {
+      alert("Rev 0 (Original) está bloqueada. Crea una nueva revisión para añadir marcas.");
+      return;
+    }
+    if (!imgRef.current) return;
+    const rect = imgRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setPendingMark({ x, y });
+    setMarkLabel("");
+  };
+
+  const confirmMark = () => {
+    if (!pendingMark || !markLabel.trim()) {
+      alert("Escribe un label (ej: FW01, FW02)");
+      return;
+    }
+    const newMark = {
+      id: Date.now().toString(),
+      x: pendingMark.x,
+      y: pendingMark.y,
+      label: markLabel.trim().toUpperCase(),
+      color: "#1e40af",
+      createdAt: new Date().toISOString(),
+    };
+    const newRevs = [...revisions];
+    newRevs[activeRev] = { ...newRevs[activeRev], marks: [...(newRevs[activeRev].marks || []), newMark] };
+    setRevisions(newRevs);
+    setPendingMark(null);
+    setMarkLabel("");
+  };
+
+  const deleteMark = (markId) => {
+    const newRevs = [...revisions];
+    newRevs[activeRev] = {
+      ...newRevs[activeRev],
+      marks: newRevs[activeRev].marks.filter((m) => m.id !== markId),
+    };
+    setRevisions(newRevs);
+  };
+
+  const startPan = (e) => {
+    if (tool !== "pan") return;
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+  };
+
+  const movePan = (e) => {
+    if (!isDragging || !dragStart) return;
+    setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+  };
+
+  const endPan = () => {
+    setIsDragging(false);
+    setDragStart(null);
+  };
+
+  const currentRev = revisions[activeRev];
+  const allMarks = currentRev?.marks || [];
+  // For Rev > 0, also show Rev 0 marks in lighter color
+  const baseMarks = activeRev > 0 ? (revisions[0]?.marks || []) : [];
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-stretch">
+      <div className="flex-1 flex flex-col bg-slate-100">
+        {/* Top bar */}
+        <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <FileImage size={20} className="text-blue-700 flex-shrink-0" />
+            <div className="min-w-0">
+              <div className="font-bold text-sm text-slate-900 font-mono truncate">{iso.number}</div>
+              <div className="text-[10px] text-slate-500 tracking-widest font-semibold">ISO VIEWER &amp; MARKUP</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={saveAll} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 text-xs font-bold tracking-widest rounded flex items-center gap-1.5 transition-colors">
+              <Save size={14} /> GUARDAR
+            </button>
+            <button onClick={onClose} className="text-slate-500 hover:text-red-600 p-2 hover:bg-red-50 rounded">
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Toolbar */}
+        {imageData && (
+          <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 flex items-center gap-2 flex-wrap">
+            <div className="flex gap-1">
+              <button
+                onClick={() => setTool("pan")}
+                className={`px-3 py-1.5 text-xs font-bold tracking-widest rounded flex items-center gap-1 transition-colors ${tool === "pan" ? "bg-blue-700 text-white" : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"}`}
+              >
+                <Move size={12} /> MOVER
+              </button>
+              <button
+                onClick={() => setTool("mark")}
+                className={`px-3 py-1.5 text-xs font-bold tracking-widest rounded flex items-center gap-1 transition-colors ${tool === "mark" ? "bg-blue-700 text-white" : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"}`}
+              >
+                <MousePointer2 size={12} /> MARCAR WELD
+              </button>
+            </div>
+            <div className="w-px h-6 bg-slate-300 mx-1" />
+            <div className="flex items-center gap-1">
+              <button onClick={() => setZoom(Math.max(0.3, zoom - 0.2))} className="p-1.5 text-slate-700 hover:bg-slate-200 rounded">
+                <ZoomOut size={14} />
+              </button>
+              <span className="text-xs font-mono font-bold text-slate-700 px-2 min-w-[50px] text-center">{Math.round(zoom * 100)}%</span>
+              <button onClick={() => setZoom(Math.min(4, zoom + 0.2))} className="p-1.5 text-slate-700 hover:bg-slate-200 rounded">
+                <ZoomIn size={14} />
+              </button>
+              <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="ml-1 px-2 py-1 text-[10px] font-bold tracking-widest text-slate-700 hover:bg-slate-200 rounded">
+                RESET
+              </button>
+            </div>
+            <div className="w-px h-6 bg-slate-300 mx-1" />
+            <div className="text-xs text-slate-500 italic">
+              {tool === "mark" ? "Haz clic sobre el plano para marcar un weld point" : "Arrastra para mover el plano"}
+            </div>
+          </div>
+        )}
+
+        {/* Canvas area */}
+        <div
+          ref={containerRef}
+          className="flex-1 overflow-hidden relative bg-slate-200"
+          onMouseDown={startPan}
+          onMouseMove={movePan}
+          onMouseUp={endPan}
+          onMouseLeave={endPan}
+          style={{ cursor: tool === "pan" ? (isDragging ? "grabbing" : "grab") : tool === "mark" ? "crosshair" : "default" }}
+        >
+          {!imageData ? (
+            <div className="absolute inset-0 flex items-center justify-center p-6">
+              <div className="bg-white border-2 border-dashed border-slate-300 rounded-xl p-12 text-center max-w-md">
+                <FileImage size={48} className="mx-auto text-slate-300 mb-4" />
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Subir ISO</h3>
+                <p className="text-sm text-slate-500 mb-4">
+                  Sube una imagen (JPG, PNG) o PDF del isométrico para visualizarlo y marcar weld points.
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={handleUpload}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-blue-700 hover:bg-blue-800 text-white px-5 py-2.5 text-xs font-bold tracking-widest rounded inline-flex items-center gap-2 transition-colors"
+                >
+                  <Upload size={14} /> SELECCIONAR ARCHIVO
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              style={{
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                transformOrigin: "center",
+                transition: isDragging ? "none" : "transform 0.1s",
+              }}
+            >
+              <div className="relative inline-block" onClick={handleImageClick}>
+                {imageData.startsWith("data:application/pdf") ? (
+                  <embed src={imageData} type="application/pdf" style={{ width: "800px", height: "600px", maxWidth: "90vw" }} />
+                ) : (
+                  <img
+                    ref={imgRef}
+                    src={imageData}
+                    alt="ISO"
+                    className="max-w-full block shadow-2xl"
+                    style={{ maxHeight: "80vh", pointerEvents: tool === "mark" ? "auto" : "none" }}
+                    draggable={false}
+                  />
+                )}
+
+                {/* Marks overlay */}
+                {imgRef.current && (
+                  <>
+                    {/* Rev 0 marks (background, lighter when in higher rev) */}
+                    {baseMarks.map((mark) => (
+                      <div
+                        key={`base-${mark.id}`}
+                        className="absolute pointer-events-none"
+                        style={{
+                          left: `${mark.x}%`,
+                          top: `${mark.y}%`,
+                          transform: "translate(-50%, -50%)",
+                        }}
+                      >
+                        <div className="w-7 h-7 rounded-full bg-slate-400/40 border-2 border-slate-500 flex items-center justify-center shadow-md">
+                          <span className="text-[8px] font-black text-slate-700">{mark.label}</span>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Current rev marks */}
+                    {allMarks.map((mark) => (
+                      <div
+                        key={mark.id}
+                        className="absolute group"
+                        style={{
+                          left: `${mark.x}%`,
+                          top: `${mark.y}%`,
+                          transform: "translate(-50%, -50%)",
+                          pointerEvents: "auto",
+                        }}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-blue-600 border-2 border-white flex items-center justify-center shadow-lg cursor-pointer hover:scale-110 transition-transform">
+                          <span className="text-[9px] font-black text-white">{mark.label}</span>
+                        </div>
+                        {!currentRev?.locked && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteMark(mark.id); }}
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-600 text-white rounded-full text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Pending mark */}
+                    {pendingMark && (
+                      <div
+                        className="absolute"
+                        style={{
+                          left: `${pendingMark.x}%`,
+                          top: `${pendingMark.y}%`,
+                          transform: "translate(-50%, -50%)",
+                          pointerEvents: "auto",
+                        }}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-amber-500 border-2 border-white animate-pulse flex items-center justify-center shadow-lg">
+                          <span className="text-[9px] font-black text-white">?</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Pending mark dialog */}
+          {pendingMark && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white border border-slate-200 rounded-lg shadow-2xl p-4 w-80">
+              <div className="text-xs font-bold tracking-widest text-slate-700 mb-2">NUEVA MARCA DE WELD</div>
+              <input
+                value={markLabel}
+                onChange={(e) => setMarkLabel(e.target.value.toUpperCase())}
+                onKeyDown={(e) => { if (e.key === "Enter") confirmMark(); if (e.key === "Escape") setPendingMark(null); }}
+                placeholder="Ej: FW01, FW02, BW03..."
+                className={inputCls}
+                autoFocus
+              />
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => setPendingMark(null)} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 text-xs font-bold tracking-widest rounded transition-colors">CANCELAR</button>
+                <button onClick={confirmMark} className="flex-1 bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 text-xs font-bold tracking-widest rounded transition-colors">AÑADIR</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Side panel - Revisions */}
+      {imageData && (
+        <div className="w-80 bg-white border-l border-slate-200 flex flex-col flex-shrink-0">
+          <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <GitBranch size={16} className="text-blue-700" />
+              <h3 className="text-sm font-bold tracking-widest text-slate-800">REVISIONES</h3>
+            </div>
+            <button
+              onClick={createRevision}
+              className="bg-blue-700 hover:bg-blue-800 text-white px-2 py-1 text-[10px] font-bold tracking-widest rounded flex items-center gap-1 transition-colors"
+            >
+              <Plus size={12} /> NUEVA
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {revisions.map((rev, idx) => (
+              <div
+                key={rev.id}
+                className={`border-2 rounded-lg p-3 cursor-pointer transition-all ${
+                  activeRev === idx ? "border-blue-700 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"
+                }`}
+                onClick={() => setActiveRev(idx)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm text-slate-900">{rev.name}</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      {new Date(rev.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "2-digit" })}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        {rev.marks?.length || 0} marks
+                      </span>
+                      {rev.locked && (
+                        <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          🔒 BLOQUEADA
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {idx > 0 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteRevision(idx); }}
+                      className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div className="text-[10px] text-slate-500 italic mt-3 px-2">
+              💡 La <strong>Rev 0</strong> es el original y siempre queda bloqueado.
+              Crea revisiones nuevas para añadir o cambiar marcas.
+            </div>
+          </div>
+
+          {/* Marks list of current rev */}
+          {currentRev && (
+            <div className="border-t border-slate-200 p-3 max-h-60 overflow-y-auto">
+              <div className="text-[10px] font-bold tracking-widest text-slate-500 mb-2">MARCAS DE {currentRev.name}</div>
+              {(currentRev.marks?.length || 0) === 0 ? (
+                <div className="text-xs text-slate-400 italic">No hay marcas en esta revisión.</div>
+              ) : (
+                <div className="space-y-1">
+                  {currentRev.marks.map((mark) => (
+                    <div key={mark.id} className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center">
+                          <span className="text-[7px] font-black text-white">{mark.label}</span>
+                        </div>
+                        <span className="font-mono font-bold text-slate-700">{mark.label}</span>
+                      </div>
+                      {!currentRev.locked && (
+                        <button onClick={() => deleteMark(mark.id)} className="text-slate-400 hover:text-red-500">
+                          <Trash2 size={11} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Replace image button */}
+          <div className="border-t border-slate-200 p-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={handleUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => { if (confirm("¿Reemplazar la imagen del ISO? Las revisiones se mantendrán pero las posiciones de las marcas pueden cambiar.")) fileInputRef.current?.click(); }}
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold tracking-widest py-2 rounded transition-colors flex items-center justify-center gap-2"
+            >
+              <Upload size={12} /> REEMPLAZAR IMAGEN
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
