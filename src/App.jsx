@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Users, FileText, BarChart3, Trash2, CheckCircle2, XCircle, X, Search, Wrench, ClipboardList, Calendar, AlertCircle, Edit2, LogOut, Shield, HardHat, Eye, LogIn, Menu, BookOpen, ShieldCheck, Thermometer, FileCheck, AlertTriangle, ChevronRight, ChevronDown, Award, Layers, Droplet, Sparkles, Link2, TrendingUp, Activity, PieChart as PieChartIcon, Upload, FileImage, MousePointer2, GitBranch, ZoomIn, ZoomOut, Move, Save, Download } from "lucide-react";
+import { Plus, Users, FileText, BarChart3, Trash2, CheckCircle2, XCircle, X, Search, Wrench, ClipboardList, Calendar, AlertCircle, Edit2, LogOut, Shield, HardHat, Eye, LogIn, Menu, BookOpen, ShieldCheck, Thermometer, FileCheck, AlertTriangle, ChevronRight, ChevronDown, Award, Layers, Droplet, Sparkles, Link2, TrendingUp, Activity, PieChart as PieChartIcon, Upload, FileImage, MousePointer2, GitBranch, ZoomIn, ZoomOut, Move, Save, Download, ArrowUpRight, Circle, Type, Pencil, Highlighter, Minus, Square, Undo2, Palette } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const STORAGE_KEY = "weld_app_v4";
@@ -2255,7 +2255,7 @@ function ChartsView({ data, getEntryRef }) {
 }
 
 function IsoViewerModal({ iso, onClose, onUpdateIso }) {
-  const [tool, setTool] = useState("pan"); // pan, mark, arrow, text
+  const [tool, setTool] = useState("pan");
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -2263,12 +2263,26 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
   const [revisions, setRevisions] = useState(iso.revisions || []);
   const [activeRev, setActiveRev] = useState(0);
   const [imageData, setImageData] = useState(iso.imageData || null);
-  const [imageDim, setImageDim] = useState({ w: 800, h: 600 });
   const [pendingMark, setPendingMark] = useState(null);
   const [markLabel, setMarkLabel] = useState("");
+  const [pendingText, setPendingText] = useState(null);
+  const [textValue, setTextValue] = useState("");
+  const [color, setColor] = useState("#1e40af");
+  const [strokeWidth, setStrokeWidth] = useState(3);
+  const [drawing, setDrawing] = useState(null); // { type, points, start, end, color, strokeWidth }
   const fileInputRef = React.useRef(null);
   const containerRef = React.useRef(null);
   const imgRef = React.useRef(null);
+  const overlayRef = React.useRef(null);
+
+  const COLORS = [
+    { name: "Azul", value: "#1e40af" },
+    { name: "Rojo", value: "#dc2626" },
+    { name: "Verde", value: "#059669" },
+    { name: "Amarillo", value: "#eab308" },
+    { name: "Naranja", value: "#ea580c" },
+    { name: "Negro", value: "#000000" },
+  ];
 
   const handleUpload = (e) => {
     const file = e.target.files?.[0];
@@ -2281,9 +2295,8 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
     reader.onload = (ev) => {
       const dataUrl = ev.target.result;
       setImageData(dataUrl);
-      // Initialize Rev 0 if no revisions yet
       if (revisions.length === 0) {
-        const rev0 = { id: "rev-0", name: "Rev 0 — Original", date: new Date().toISOString(), marks: [], locked: true };
+        const rev0 = { id: "rev-0", name: "Rev 0 — Original", date: new Date().toISOString(), marks: [], annotations: [], locked: true };
         setRevisions([rev0]);
         setActiveRev(0);
       }
@@ -2303,6 +2316,7 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
       name: `Rev ${nextNum} — ${new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit" })}`,
       date: new Date().toISOString(),
       marks: [],
+      annotations: [],
       locked: false,
     };
     setRevisions([...revisions, newRev]);
@@ -2317,18 +2331,89 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
     setActiveRev(Math.max(0, activeRev - (idx <= activeRev ? 1 : 0)));
   };
 
-  const handleImageClick = (e) => {
-    if (tool !== "mark") return;
-    if (revisions[activeRev]?.locked) {
-      alert("Rev 0 (Original) está bloqueada. Crea una nueva revisión para añadir marcas.");
+  const undoLast = () => {
+    if (revisions[activeRev]?.locked) { alert("Rev 0 está bloqueada."); return; }
+    const newRevs = [...revisions];
+    const rev = { ...newRevs[activeRev] };
+    const annotations = rev.annotations || [];
+    const marks = rev.marks || [];
+    if (annotations.length > 0) {
+      rev.annotations = annotations.slice(0, -1);
+    } else if (marks.length > 0) {
+      rev.marks = marks.slice(0, -1);
+    } else {
       return;
     }
-    if (!imgRef.current) return;
+    newRevs[activeRev] = rev;
+    setRevisions(newRevs);
+  };
+
+  const getRelativeCoords = (e) => {
+    if (!imgRef.current) return null;
     const rect = imgRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setPendingMark({ x, y });
-    setMarkLabel("");
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+    };
+  };
+
+  const handleImageMouseDown = (e) => {
+    if (revisions[activeRev]?.locked) {
+      if (tool !== "pan") {
+        alert("Rev 0 (Original) está bloqueada. Crea una nueva revisión para añadir anotaciones.");
+        return;
+      }
+    }
+    const coords = getRelativeCoords(e);
+    if (!coords) return;
+
+    if (tool === "mark") {
+      setPendingMark(coords);
+      setMarkLabel("");
+    } else if (tool === "text") {
+      setPendingText(coords);
+      setTextValue("");
+    } else if (tool === "arrow" || tool === "line" || tool === "circle" || tool === "rectangle") {
+      setDrawing({
+        type: tool,
+        start: coords,
+        end: coords,
+        color,
+        strokeWidth,
+      });
+    } else if (tool === "pencil" || tool === "highlighter") {
+      setDrawing({
+        type: tool,
+        points: [coords],
+        color: tool === "highlighter" ? color : color,
+        strokeWidth: tool === "highlighter" ? 18 : strokeWidth,
+        opacity: tool === "highlighter" ? 0.4 : 1,
+      });
+    }
+  };
+
+  const handleImageMouseMove = (e) => {
+    if (!drawing) return;
+    const coords = getRelativeCoords(e);
+    if (!coords) return;
+
+    if (drawing.type === "pencil" || drawing.type === "highlighter") {
+      setDrawing({ ...drawing, points: [...drawing.points, coords] });
+    } else {
+      setDrawing({ ...drawing, end: coords });
+    }
+  };
+
+  const handleImageMouseUp = () => {
+    if (!drawing) return;
+    const annotation = { id: Date.now().toString(), ...drawing };
+    const newRevs = [...revisions];
+    newRevs[activeRev] = {
+      ...newRevs[activeRev],
+      annotations: [...(newRevs[activeRev].annotations || []), annotation],
+    };
+    setRevisions(newRevs);
+    setDrawing(null);
   };
 
   const confirmMark = () => {
@@ -2341,7 +2426,7 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
       x: pendingMark.x,
       y: pendingMark.y,
       label: markLabel.trim().toUpperCase(),
-      color: "#1e40af",
+      color,
       createdAt: new Date().toISOString(),
     };
     const newRevs = [...revisions];
@@ -2351,11 +2436,44 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
     setMarkLabel("");
   };
 
+  const confirmText = () => {
+    if (!pendingText || !textValue.trim()) {
+      setPendingText(null);
+      return;
+    }
+    const annotation = {
+      id: Date.now().toString(),
+      type: "text",
+      x: pendingText.x,
+      y: pendingText.y,
+      text: textValue.trim(),
+      color,
+      fontSize: 14 + (strokeWidth * 2),
+    };
+    const newRevs = [...revisions];
+    newRevs[activeRev] = {
+      ...newRevs[activeRev],
+      annotations: [...(newRevs[activeRev].annotations || []), annotation],
+    };
+    setRevisions(newRevs);
+    setPendingText(null);
+    setTextValue("");
+  };
+
   const deleteMark = (markId) => {
     const newRevs = [...revisions];
     newRevs[activeRev] = {
       ...newRevs[activeRev],
       marks: newRevs[activeRev].marks.filter((m) => m.id !== markId),
+    };
+    setRevisions(newRevs);
+  };
+
+  const deleteAnnotation = (annId) => {
+    const newRevs = [...revisions];
+    newRevs[activeRev] = {
+      ...newRevs[activeRev],
+      annotations: (newRevs[activeRev].annotations || []).filter((a) => a.id !== annId),
     };
     setRevisions(newRevs);
   };
@@ -2378,13 +2496,88 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
 
   const currentRev = revisions[activeRev];
   const allMarks = currentRev?.marks || [];
-  // For Rev > 0, also show Rev 0 marks in lighter color
+  const allAnnotations = currentRev?.annotations || [];
   const baseMarks = activeRev > 0 ? (revisions[0]?.marks || []) : [];
+  const baseAnnotations = activeRev > 0 ? (revisions[0]?.annotations || []) : [];
+
+  const cursorByTool = {
+    pan: isDragging ? "grabbing" : "grab",
+    mark: "crosshair",
+    text: "text",
+    arrow: "crosshair",
+    line: "crosshair",
+    circle: "crosshair",
+    rectangle: "crosshair",
+    pencil: "crosshair",
+    highlighter: "crosshair",
+  };
+
+  // Render annotation as SVG element
+  const renderAnnotation = (ann, opacity = 1) => {
+    if (ann.type === "arrow" || ann.type === "line") {
+      const x1 = ann.start.x, y1 = ann.start.y;
+      const x2 = ann.end.x, y2 = ann.end.y;
+      return (
+        <g key={ann.id} opacity={opacity}>
+          <line x1={`${x1}%`} y1={`${y1}%`} x2={`${x2}%`} y2={`${y2}%`} stroke={ann.color} strokeWidth={ann.strokeWidth} strokeLinecap="round" />
+          {ann.type === "arrow" && (() => {
+            const dx = x2 - x1, dy = y2 - y1;
+            const angle = Math.atan2(dy, dx);
+            const headLen = 2.5;
+            const ax1 = x2 - headLen * Math.cos(angle - Math.PI / 6);
+            const ay1 = y2 - headLen * Math.sin(angle - Math.PI / 6);
+            const ax2 = x2 - headLen * Math.cos(angle + Math.PI / 6);
+            const ay2 = y2 - headLen * Math.sin(angle + Math.PI / 6);
+            return (
+              <polygon points={`${x2},${y2} ${ax1},${ay1} ${ax2},${ay2}`} fill={ann.color} transform={`scale(1)`} />
+            );
+          })()}
+        </g>
+      );
+    }
+    if (ann.type === "circle") {
+      const cx = (ann.start.x + ann.end.x) / 2;
+      const cy = (ann.start.y + ann.end.y) / 2;
+      const rx = Math.abs(ann.end.x - ann.start.x) / 2;
+      const ry = Math.abs(ann.end.y - ann.start.y) / 2;
+      return <ellipse key={ann.id} cx={`${cx}%`} cy={`${cy}%`} rx={`${rx}%`} ry={`${ry}%`} stroke={ann.color} strokeWidth={ann.strokeWidth} fill="none" opacity={opacity} />;
+    }
+    if (ann.type === "rectangle") {
+      const x = Math.min(ann.start.x, ann.end.x);
+      const y = Math.min(ann.start.y, ann.end.y);
+      const w = Math.abs(ann.end.x - ann.start.x);
+      const h = Math.abs(ann.end.y - ann.start.y);
+      return <rect key={ann.id} x={`${x}%`} y={`${y}%`} width={`${w}%`} height={`${h}%`} stroke={ann.color} strokeWidth={ann.strokeWidth} fill="none" opacity={opacity} />;
+    }
+    if (ann.type === "pencil" || ann.type === "highlighter") {
+      const pts = ann.points.map(p => `${p.x},${p.y}`).join(" ");
+      return <polyline key={ann.id} points={pts} stroke={ann.color} strokeWidth={ann.strokeWidth} fill="none" strokeLinecap="round" strokeLinejoin="round" opacity={(ann.opacity || 1) * opacity} vectorEffect="non-scaling-stroke" />;
+    }
+    if (ann.type === "text") {
+      return (
+        <text key={ann.id} x={`${ann.x}%`} y={`${ann.y}%`} fill={ann.color} fontSize={ann.fontSize || 14} fontWeight="bold" opacity={opacity} style={{ userSelect: "none" }}>
+          {ann.text}
+        </text>
+      );
+    }
+    return null;
+  };
+
+  const tools = [
+    { id: "pan", icon: Move, label: "MOVER" },
+    { id: "mark", icon: MousePointer2, label: "WELD" },
+    { id: "arrow", icon: ArrowUpRight, label: "FLECHA" },
+    { id: "line", icon: Minus, label: "LÍNEA" },
+    { id: "circle", icon: Circle, label: "CÍRCULO" },
+    { id: "rectangle", icon: Square, label: "RECTÁNGULO" },
+    { id: "pencil", icon: Pencil, label: "DIBUJAR" },
+    { id: "highlighter", icon: Highlighter, label: "MARCAR" },
+    { id: "text", icon: Type, label: "TEXTO" },
+  ];
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-stretch">
       <div className="flex-1 flex flex-col bg-slate-100">
-        {/* Top bar */}
         <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3 min-w-0">
             <FileImage size={20} className="text-blue-700 flex-shrink-0" />
@@ -2403,52 +2596,91 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
           </div>
         </div>
 
-        {/* Toolbar */}
         {imageData && (
-          <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 flex items-center gap-2 flex-wrap">
-            <div className="flex gap-1">
-              <button
-                onClick={() => setTool("pan")}
-                className={`px-3 py-1.5 text-xs font-bold tracking-widest rounded flex items-center gap-1 transition-colors ${tool === "pan" ? "bg-blue-700 text-white" : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"}`}
-              >
-                <Move size={12} /> MOVER
-              </button>
-              <button
-                onClick={() => setTool("mark")}
-                className={`px-3 py-1.5 text-xs font-bold tracking-widest rounded flex items-center gap-1 transition-colors ${tool === "mark" ? "bg-blue-700 text-white" : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"}`}
-              >
-                <MousePointer2 size={12} /> MARCAR WELD
+          <>
+            {/* Tools row */}
+            <div className="bg-slate-50 border-b border-slate-200 px-3 py-2 flex items-center gap-1 flex-wrap">
+              {tools.map((t) => {
+                const Icon = t.icon;
+                const active = tool === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setTool(t.id)}
+                    title={t.label}
+                    className={`px-2.5 py-1.5 text-[10px] font-bold tracking-widest rounded flex items-center gap-1 transition-colors ${active ? "bg-blue-700 text-white" : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"}`}
+                  >
+                    <Icon size={12} /> {t.label}
+                  </button>
+                );
+              })}
+
+              <div className="w-px h-6 bg-slate-300 mx-1" />
+
+              {/* Color picker */}
+              <div className="flex items-center gap-1">
+                {COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    onClick={() => setColor(c.value)}
+                    title={c.name}
+                    className={`w-6 h-6 rounded-full border-2 transition-all ${color === c.value ? "border-slate-800 scale-110" : "border-white"}`}
+                    style={{ backgroundColor: c.value }}
+                  />
+                ))}
+              </div>
+
+              <div className="w-px h-6 bg-slate-300 mx-1" />
+
+              {/* Stroke width */}
+              <div className="flex items-center gap-1">
+                {[2, 3, 5, 8].map((w) => (
+                  <button
+                    key={w}
+                    onClick={() => setStrokeWidth(w)}
+                    title={`Grosor ${w}`}
+                    className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${strokeWidth === w ? "bg-blue-700" : "bg-white border border-slate-300 hover:bg-slate-100"}`}
+                  >
+                    <div className="rounded-full" style={{ width: `${w}px`, height: `${w}px`, backgroundColor: strokeWidth === w ? "white" : color }} />
+                  </button>
+                ))}
+              </div>
+
+              <div className="w-px h-6 bg-slate-300 mx-1" />
+
+              <button onClick={undoLast} title="Deshacer última" className="px-2 py-1.5 text-[10px] font-bold tracking-widest rounded flex items-center gap-1 bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 transition-colors">
+                <Undo2 size={12} /> DESHACER
               </button>
             </div>
-            <div className="w-px h-6 bg-slate-300 mx-1" />
-            <div className="flex items-center gap-1">
-              <button onClick={() => setZoom(Math.max(0.3, zoom - 0.2))} className="p-1.5 text-slate-700 hover:bg-slate-200 rounded">
+
+            {/* Zoom row */}
+            <div className="bg-slate-50 border-b border-slate-200 px-3 py-1.5 flex items-center gap-2">
+              <button onClick={() => setZoom(Math.max(0.3, zoom - 0.2))} className="p-1 text-slate-700 hover:bg-slate-200 rounded">
                 <ZoomOut size={14} />
               </button>
-              <span className="text-xs font-mono font-bold text-slate-700 px-2 min-w-[50px] text-center">{Math.round(zoom * 100)}%</span>
-              <button onClick={() => setZoom(Math.min(4, zoom + 0.2))} className="p-1.5 text-slate-700 hover:bg-slate-200 rounded">
+              <span className="text-xs font-mono font-bold text-slate-700 px-1 min-w-[50px] text-center">{Math.round(zoom * 100)}%</span>
+              <button onClick={() => setZoom(Math.min(4, zoom + 0.2))} className="p-1 text-slate-700 hover:bg-slate-200 rounded">
                 <ZoomIn size={14} />
               </button>
-              <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="ml-1 px-2 py-1 text-[10px] font-bold tracking-widest text-slate-700 hover:bg-slate-200 rounded">
+              <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="ml-1 px-2 py-0.5 text-[10px] font-bold tracking-widest text-slate-700 hover:bg-slate-200 rounded">
                 RESET
               </button>
+              <div className="w-px h-5 bg-slate-300 mx-2" />
+              <span className="text-[10px] text-slate-500 italic">
+                {tool === "mark" ? "Clic para marcar weld point" : tool === "pan" ? "Arrastra para mover" : tool === "text" ? "Clic para añadir texto" : tool === "pencil" || tool === "highlighter" ? "Mantén presionado y arrastra" : "Clic y arrastra para dibujar"}
+              </span>
             </div>
-            <div className="w-px h-6 bg-slate-300 mx-1" />
-            <div className="text-xs text-slate-500 italic">
-              {tool === "mark" ? "Haz clic sobre el plano para marcar un weld point" : "Arrastra para mover el plano"}
-            </div>
-          </div>
+          </>
         )}
 
-        {/* Canvas area */}
         <div
           ref={containerRef}
           className="flex-1 overflow-hidden relative bg-slate-200"
-          onMouseDown={startPan}
-          onMouseMove={movePan}
-          onMouseUp={endPan}
-          onMouseLeave={endPan}
-          style={{ cursor: tool === "pan" ? (isDragging ? "grabbing" : "grab") : tool === "mark" ? "crosshair" : "default" }}
+          onMouseDown={tool === "pan" ? startPan : undefined}
+          onMouseMove={tool === "pan" ? movePan : undefined}
+          onMouseUp={tool === "pan" ? endPan : undefined}
+          onMouseLeave={tool === "pan" ? endPan : undefined}
+          style={{ cursor: cursorByTool[tool] || "default" }}
         >
           {!imageData ? (
             <div className="absolute inset-0 flex items-center justify-center p-6">
@@ -2456,7 +2688,7 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
                 <FileImage size={48} className="mx-auto text-slate-300 mb-4" />
                 <h3 className="text-lg font-bold text-slate-900 mb-2">Subir ISO</h3>
                 <p className="text-sm text-slate-500 mb-4">
-                  Sube una imagen (JPG, PNG) o PDF del isométrico para visualizarlo y marcar weld points.
+                  Sube una imagen (JPG, PNG) o PDF del isométrico para visualizarlo y anotarlo.
                 </p>
                 <input
                   ref={fileInputRef}
@@ -2482,53 +2714,65 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
                 transition: isDragging ? "none" : "transform 0.1s",
               }}
             >
-              <div className="relative inline-block" onClick={handleImageClick}>
+              <div
+                className="relative inline-block"
+                onMouseDown={tool !== "pan" ? handleImageMouseDown : undefined}
+                onMouseMove={tool !== "pan" && drawing ? handleImageMouseMove : undefined}
+                onMouseUp={tool !== "pan" && drawing ? handleImageMouseUp : undefined}
+              >
                 {imageData.startsWith("data:application/pdf") ? (
-                  <embed src={imageData} type="application/pdf" style={{ width: "800px", height: "600px", maxWidth: "90vw" }} />
+                  <embed src={imageData} type="application/pdf" style={{ width: "800px", height: "600px", maxWidth: "90vw", pointerEvents: "none" }} />
                 ) : (
                   <img
                     ref={imgRef}
                     src={imageData}
                     alt="ISO"
                     className="max-w-full block shadow-2xl"
-                    style={{ maxHeight: "80vh", pointerEvents: tool === "mark" ? "auto" : "none" }}
+                    style={{ maxHeight: "80vh", pointerEvents: "none" }}
                     draggable={false}
                   />
                 )}
 
+                {/* SVG overlay for annotations */}
+                <svg
+                  ref={overlayRef}
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                  preserveAspectRatio="none"
+                  viewBox="0 0 100 100"
+                  style={{ overflow: "visible" }}
+                >
+                  {/* Base annotations from Rev 0 if in higher rev */}
+                  {baseAnnotations.map((ann) => renderAnnotation(ann, 0.35))}
+                  {/* Current rev annotations */}
+                  {allAnnotations.map((ann) => renderAnnotation(ann, 1))}
+                  {/* Drawing in progress */}
+                  {drawing && renderAnnotation({ ...drawing, id: "preview" }, 0.7)}
+                </svg>
+
                 {/* Marks overlay */}
                 {imgRef.current && (
                   <>
-                    {/* Rev 0 marks (background, lighter when in higher rev) */}
                     {baseMarks.map((mark) => (
                       <div
                         key={`base-${mark.id}`}
                         className="absolute pointer-events-none"
-                        style={{
-                          left: `${mark.x}%`,
-                          top: `${mark.y}%`,
-                          transform: "translate(-50%, -50%)",
-                        }}
+                        style={{ left: `${mark.x}%`, top: `${mark.y}%`, transform: "translate(-50%, -50%)" }}
                       >
                         <div className="w-7 h-7 rounded-full bg-slate-400/40 border-2 border-slate-500 flex items-center justify-center shadow-md">
                           <span className="text-[8px] font-black text-slate-700">{mark.label}</span>
                         </div>
                       </div>
                     ))}
-
-                    {/* Current rev marks */}
                     {allMarks.map((mark) => (
                       <div
                         key={mark.id}
                         className="absolute group"
-                        style={{
-                          left: `${mark.x}%`,
-                          top: `${mark.y}%`,
-                          transform: "translate(-50%, -50%)",
-                          pointerEvents: "auto",
-                        }}
+                        style={{ left: `${mark.x}%`, top: `${mark.y}%`, transform: "translate(-50%, -50%)", pointerEvents: "auto" }}
                       >
-                        <div className="w-8 h-8 rounded-full bg-blue-600 border-2 border-white flex items-center justify-center shadow-lg cursor-pointer hover:scale-110 transition-transform">
+                        <div
+                          className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center shadow-lg cursor-pointer hover:scale-110 transition-transform"
+                          style={{ backgroundColor: mark.color || "#1e40af" }}
+                        >
                           <span className="text-[9px] font-black text-white">{mark.label}</span>
                         </div>
                         {!currentRev?.locked && (
@@ -2541,21 +2785,16 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
                         )}
                       </div>
                     ))}
-
-                    {/* Pending mark */}
                     {pendingMark && (
-                      <div
-                        className="absolute"
-                        style={{
-                          left: `${pendingMark.x}%`,
-                          top: `${pendingMark.y}%`,
-                          transform: "translate(-50%, -50%)",
-                          pointerEvents: "auto",
-                        }}
-                      >
+                      <div className="absolute" style={{ left: `${pendingMark.x}%`, top: `${pendingMark.y}%`, transform: "translate(-50%, -50%)" }}>
                         <div className="w-8 h-8 rounded-full bg-amber-500 border-2 border-white animate-pulse flex items-center justify-center shadow-lg">
                           <span className="text-[9px] font-black text-white">?</span>
                         </div>
+                      </div>
+                    )}
+                    {pendingText && (
+                      <div className="absolute" style={{ left: `${pendingText.x}%`, top: `${pendingText.y}%`, transform: "translate(-50%, 0)" }}>
+                        <div className="w-2 h-6 bg-amber-500 animate-pulse" />
                       </div>
                     )}
                   </>
@@ -2564,7 +2803,6 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
             </div>
           )}
 
-          {/* Pending mark dialog */}
           {pendingMark && (
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white border border-slate-200 rounded-lg shadow-2xl p-4 w-80">
               <div className="text-xs font-bold tracking-widest text-slate-700 mb-2">NUEVA MARCA DE WELD</div>
@@ -2582,10 +2820,27 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
               </div>
             </div>
           )}
+
+          {pendingText && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white border border-slate-200 rounded-lg shadow-2xl p-4 w-96">
+              <div className="text-xs font-bold tracking-widest text-slate-700 mb-2">AÑADIR TEXTO</div>
+              <input
+                value={textValue}
+                onChange={(e) => setTextValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") confirmText(); if (e.key === "Escape") setPendingText(null); }}
+                placeholder="Escribe tu nota..."
+                className={inputCls}
+                autoFocus
+              />
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => setPendingText(null)} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 text-xs font-bold tracking-widest rounded transition-colors">CANCELAR</button>
+                <button onClick={confirmText} className="flex-1 bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 text-xs font-bold tracking-widest rounded transition-colors">AÑADIR</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Side panel - Revisions */}
       {imageData && (
         <div className="w-80 bg-white border-l border-slate-200 flex flex-col flex-shrink-0">
           <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
@@ -2593,10 +2848,7 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
               <GitBranch size={16} className="text-blue-700" />
               <h3 className="text-sm font-bold tracking-widest text-slate-800">REVISIONES</h3>
             </div>
-            <button
-              onClick={createRevision}
-              className="bg-blue-700 hover:bg-blue-800 text-white px-2 py-1 text-[10px] font-bold tracking-widest rounded flex items-center gap-1 transition-colors"
-            >
+            <button onClick={createRevision} className="bg-blue-700 hover:bg-blue-800 text-white px-2 py-1 text-[10px] font-bold tracking-widest rounded flex items-center gap-1 transition-colors">
               <Plus size={12} /> NUEVA
             </button>
           </div>
@@ -2604,9 +2856,7 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
             {revisions.map((rev, idx) => (
               <div
                 key={rev.id}
-                className={`border-2 rounded-lg p-3 cursor-pointer transition-all ${
-                  activeRev === idx ? "border-blue-700 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"
-                }`}
+                className={`border-2 rounded-lg p-3 cursor-pointer transition-all ${activeRev === idx ? "border-blue-700 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"}`}
                 onClick={() => setActiveRev(idx)}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -2615,22 +2865,22 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
                     <div className="text-[10px] text-slate-500 mt-0.5">
                       {new Date(rev.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "2-digit" })}
                     </div>
-                    <div className="flex items-center gap-2 mt-1.5">
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                       <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                        {rev.marks?.length || 0} marks
+                        {rev.marks?.length || 0} welds
+                      </span>
+                      <span className="bg-violet-100 text-violet-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        {rev.annotations?.length || 0} notas
                       </span>
                       {rev.locked && (
                         <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          🔒 BLOQUEADA
+                          🔒
                         </span>
                       )}
                     </div>
                   </div>
                   {idx > 0 && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); deleteRevision(idx); }}
-                      className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"
-                    >
+                    <button onClick={(e) => { e.stopPropagation(); deleteRevision(idx); }} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50">
                       <Trash2 size={12} />
                     </button>
                   )}
@@ -2638,23 +2888,21 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
               </div>
             ))}
             <div className="text-[10px] text-slate-500 italic mt-3 px-2">
-              💡 La <strong>Rev 0</strong> es el original y siempre queda bloqueado.
-              Crea revisiones nuevas para añadir o cambiar marcas.
+              💡 La <strong>Rev 0</strong> es el original y siempre queda bloqueado. Crea revisiones nuevas para añadir o cambiar anotaciones.
             </div>
           </div>
 
-          {/* Marks list of current rev */}
           {currentRev && (
-            <div className="border-t border-slate-200 p-3 max-h-60 overflow-y-auto">
-              <div className="text-[10px] font-bold tracking-widest text-slate-500 mb-2">MARCAS DE {currentRev.name}</div>
-              {(currentRev.marks?.length || 0) === 0 ? (
-                <div className="text-xs text-slate-400 italic">No hay marcas en esta revisión.</div>
+            <div className="border-t border-slate-200 p-3 max-h-72 overflow-y-auto">
+              <div className="text-[10px] font-bold tracking-widest text-slate-500 mb-2">CONTENIDO DE {currentRev.name}</div>
+              {(currentRev.marks?.length || 0) === 0 && (currentRev.annotations?.length || 0) === 0 ? (
+                <div className="text-xs text-slate-400 italic">Sin contenido en esta revisión.</div>
               ) : (
                 <div className="space-y-1">
-                  {currentRev.marks.map((mark) => (
+                  {currentRev.marks?.map((mark) => (
                     <div key={mark.id} className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded">
                       <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center">
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: mark.color || "#1e40af" }}>
                           <span className="text-[7px] font-black text-white">{mark.label}</span>
                         </div>
                         <span className="font-mono font-bold text-slate-700">{mark.label}</span>
@@ -2666,12 +2914,27 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
                       )}
                     </div>
                   ))}
+                  {currentRev.annotations?.map((ann) => {
+                    const typeLabel = ann.type === "arrow" ? "Flecha" : ann.type === "line" ? "Línea" : ann.type === "circle" ? "Círculo" : ann.type === "rectangle" ? "Rectángulo" : ann.type === "pencil" ? "Dibujo" : ann.type === "highlighter" ? "Marcador" : ann.type === "text" ? "Texto" : ann.type;
+                    return (
+                      <div key={ann.id} className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: ann.color }} />
+                          <span className="text-slate-700">{typeLabel}{ann.text ? `: "${ann.text.substring(0, 20)}${ann.text.length > 20 ? '…' : ''}"` : ''}</span>
+                        </div>
+                        {!currentRev.locked && (
+                          <button onClick={() => deleteAnnotation(ann.id)} className="text-slate-400 hover:text-red-500">
+                            <Trash2 size={11} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
           )}
 
-          {/* Replace image button */}
           <div className="border-t border-slate-200 p-3">
             <input
               ref={fileInputRef}
@@ -2681,7 +2944,7 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
               className="hidden"
             />
             <button
-              onClick={() => { if (confirm("¿Reemplazar la imagen del ISO? Las revisiones se mantendrán pero las posiciones de las marcas pueden cambiar.")) fileInputRef.current?.click(); }}
+              onClick={() => { if (confirm("¿Reemplazar la imagen del ISO?")) fileInputRef.current?.click(); }}
               className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold tracking-widest py-2 rounded transition-colors flex items-center justify-center gap-2"
             >
               <Upload size={12} /> REEMPLAZAR IMAGEN
