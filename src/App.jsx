@@ -9,7 +9,7 @@ const initialData = {
     { id: "u1", username: "admin", password: "admin", role: "admin", name: "Administrator" },
     { id: "u2", username: "qc", password: "qc", role: "qc", name: "QC Inspector" },
   ],
-  welders: [], isos: [], dailyLogs: [], inspections: [], tools: [],
+  welders: [], isos: [], dailyLogs: [], inspections: [], tools: [], systems: [],
 };
 
 const inputCls = "w-full bg-white border border-slate-300 text-sm px-3 py-2 rounded focus:border-blue-600 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all";
@@ -444,6 +444,9 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
   const reassignTool = (id, welderId) => setData((d) => ({ ...d, tools: d.tools.map((t) => t.id === id ? { ...t, welderId } : t) }));
   const addInspection = (i) => setData((d) => ({ ...d, inspections: [...d.inspections, { ...i, id: Date.now().toString() }] }));
   const deleteInspection = (id) => { if (!confirm("Delete inspection?")) return; setData((d) => ({ ...d, inspections: d.inspections.filter((i) => i.id !== id) })); };
+  const addSystem = (name) => setData((d) => ({ ...d, systems: [...(d.systems || []), { id: Date.now().toString(), name: name.trim().toUpperCase() }] }));
+  const deleteSystem = (id) => { if (!confirm("Delete system? Los ISOs con este sistema quedarán sin clasificar.")) return; setData((d) => ({ ...d, systems: (d.systems || []).filter((s) => s.id !== id) })); };
+  const updateIso = (isoId, fields) => setData((d) => ({ ...d, isos: d.isos.map((i) => i.id === isoId ? { ...i, ...fields } : i) }));
 
   const myWelderId = role === "welder" ? currentUser.id : null;
   const visibleLogs = role === "welder" ? data.dailyLogs.filter((l) => l.welderId === myWelderId) : data.dailyLogs;
@@ -602,7 +605,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {view === "dashboard" && <DashboardView role={role} stats={stats} data={data} visibleLogs={visibleLogs} getWelderStats={getWelderStats} currentUser={currentUser} />}
         {view === "welders" && role === "admin" && <WeldersView welders={data.welders} isos={data.isos} tools={data.tools} getStats={getWelderStats} onAdd={addWelder} onDelete={deleteWelder} />}
-        {view === "isos" && role === "admin" && <IsosView isos={data.isos} welders={data.welders} onAdd={addIso} onDelete={deleteIso} onAssign={assignIso} />}
+        {view === "isos" && role === "admin" && <IsosView isos={data.isos} welders={data.welders} systems={data.systems || []} onAdd={addIso} onDelete={deleteIso} onAssign={assignIso} onAddSystem={addSystem} onDeleteSystem={deleteSystem} onUpdateIso={updateIso} />}
         {view === "logs" && <LogsView role={role} currentUser={currentUser} logs={visibleLogs} welders={data.welders} isos={data.isos} inspections={data.inspections} onSaveLog={saveLog} onDeleteLog={deleteLog} onAddEntry={addEntry} onDeleteEntry={deleteEntry} onUpdateEntry={updateEntry} />}
         {view === "inspections" && (role === "admin" || role === "qc") && <InspectionsView role={role} logs={data.dailyLogs} welders={data.welders} inspections={data.inspections} onAdd={addInspection} onDelete={deleteInspection} />}
         {view === "tools" && <ToolsView role={role} currentUser={currentUser} tools={data.tools} welders={data.welders} onAdd={addTool} onDelete={deleteTool} onReassign={reassignTool} />}
@@ -792,76 +795,469 @@ function WeldersView({ welders, isos, tools, getStats, onAdd, onDelete }) {
   );
 }
 
-function IsoModal({ onClose, onSave, welders }) {
-  const [number, setNumber] = useState("");
-  const [description, setDescription] = useState("");
-  const [welderId, setWelderId] = useState("");
-  const submit = () => { if (!number.trim()) return; onSave({ number: number.trim().toUpperCase(), description: description.trim(), welderId: welderId || null }); onClose(); };
+function IsoModal({ onClose, onSave, welders, systems, editing }) {
+  const [number, setNumber] = useState(editing?.number || "");
+  const [description, setDescription] = useState(editing?.description || "");
+  const [welderId, setWelderId] = useState(editing?.welderId || "");
+  const [systemId, setSystemId] = useState(editing?.systemId || "");
+  const [size, setSize] = useState(editing?.size || "");
+  const [page, setPage] = useState(editing?.page || "");
+  const [error, setError] = useState("");
+
+  const submit = () => {
+    setError("");
+    if (!number.trim()) { setError("ISO number is required"); return; }
+    if (!systemId) { setError("Selecciona un sistema (HPUR, CIPR, etc.). Si no existe, créalo primero en GESTIONAR SISTEMAS."); return; }
+    if (!size.trim()) { setError("Indica la medida del tubo (ej: 2\")"); return; }
+    if (!page.toString().trim()) { setError("Indica el número de página"); return; }
+    const sizeFormatted = size.trim().endsWith('"') ? size.trim() : size.trim() + '"';
+    onSave({
+      number: number.trim().toUpperCase(),
+      description: description.trim(),
+      welderId: welderId || null,
+      systemId,
+      size: sizeFormatted,
+      page: parseInt(page) || 0,
+    });
+    onClose();
+  };
+
+  if (systems.length === 0) {
+    return (
+      <ModalShell title={editing ? "EDITAR ISO" : "NEW ISO"} onClose={onClose}>
+        <div className="bg-amber-50 border border-amber-200 px-4 py-3 rounded text-sm text-amber-800 flex items-start gap-2">
+          <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+          <div>
+            <div className="font-bold mb-1">No hay sistemas creados</div>
+            <div className="text-xs">Antes de crear un ISO, primero debes crear al menos un sistema (HPUR, CIPR, RO, etc.) usando el botón <strong>GESTIONAR SISTEMAS</strong>.</div>
+          </div>
+        </div>
+        <button onClick={onClose} className="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 text-xs tracking-widest rounded transition-colors">CERRAR</button>
+      </ModalShell>
+    );
+  }
+
   return (
-    <ModalShell title="NEW ISO" onClose={onClose}>
-      <Field label="ISO NUMBER"><input value={number} onChange={(e) => setNumber(e.target.value)} className={inputCls} autoFocus /></Field>
-      <Field label="DESCRIPTION (OPTIONAL)"><input value={description} onChange={(e) => setDescription(e.target.value)} className={inputCls} /></Field>
-      <Field label="ASSIGN TO WELDER">
+    <ModalShell title={editing ? "EDITAR ISO" : "NEW ISO"} onClose={onClose}>
+      <Field label="ISO NUMBER">
+        <input value={number} onChange={(e) => setNumber(e.target.value)} className={inputCls} autoFocus placeholder="2.00-HPUR-SS02-3456008-F4-34" />
+      </Field>
+      <Field label="DESCRIPCIÓN (OPCIONAL)">
+        <input value={description} onChange={(e) => setDescription(e.target.value)} className={inputCls} />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="SISTEMA *">
+          <select value={systemId} onChange={(e) => setSystemId(e.target.value)} className={selectCls}>
+            <option value="">— Seleccionar —</option>
+            {systems.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </Field>
+        <Field label="MEDIDA TUBO *">
+          <input value={size} onChange={(e) => setSize(e.target.value)} className={inputCls} placeholder='2"' />
+        </Field>
+      </div>
+      <Field label="NÚMERO DE PÁGINA *">
+        <input type="number" value={page} onChange={(e) => setPage(e.target.value)} className={inputCls} placeholder="34" min="1" />
+      </Field>
+      <Field label="ASIGNAR A WELDER (OPCIONAL)">
         <select value={welderId} onChange={(e) => setWelderId(e.target.value)} className={selectCls}>
           <option value="">— Sin asignar —</option>
           {welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
         </select>
       </Field>
-      <button onClick={submit} className={btnPrimaryFull}>REGISTRAR</button>
+      {error && <div className="text-red-600 text-xs bg-red-50 border border-red-200 px-3 py-2 rounded">{error}</div>}
+      <button onClick={submit} className={btnPrimaryFull}>{editing ? "GUARDAR CAMBIOS" : "REGISTRAR"}</button>
     </ModalShell>
   );
 }
 
-function IsosView({ isos, welders, onAdd, onDelete, onAssign }) {
+function SystemsModal({ onClose, systems, onAdd, onDelete }) {
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+
+  const submit = () => {
+    setError("");
+    if (!name.trim()) { setError("Nombre requerido"); return; }
+    if (systems.find((s) => s.name.toLowerCase() === name.trim().toLowerCase())) {
+      setError("Ya existe un sistema con ese nombre");
+      return;
+    }
+    onAdd(name);
+    setName("");
+  };
+
+  return (
+    <ModalShell title="GESTIONAR SISTEMAS" onClose={onClose}>
+      <div className="bg-blue-50 border border-blue-100 p-3 rounded text-xs text-slate-600">
+        Los sistemas (ej: <strong>HPUR</strong>, <strong>CIPR</strong>, <strong>RO</strong>, <strong>CIPS</strong>) varían por proyecto. Crea aquí los que necesites.
+      </div>
+      <Field label="NUEVO SISTEMA">
+        <div className="flex gap-2">
+          <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} className={inputCls} placeholder="Ej: HPUR, CIPR, RO..." autoFocus />
+          <button onClick={submit} className="bg-blue-700 hover:bg-blue-800 text-white px-4 text-xs font-bold tracking-widest rounded transition-colors flex-shrink-0">
+            <Plus size={14} />
+          </button>
+        </div>
+      </Field>
+      {error && <div className="text-red-600 text-xs bg-red-50 border border-red-200 px-3 py-2 rounded">{error}</div>}
+      <div>
+        <div className="text-xs text-slate-600 tracking-wider font-semibold mb-2">SISTEMAS REGISTRADOS ({systems.length})</div>
+        {systems.length === 0 ? (
+          <div className="text-slate-400 text-sm italic text-center py-4">Aún no has creado sistemas.</div>
+        ) : (
+          <div className="space-y-1.5">
+            {systems.map((s) => (
+              <div key={s.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded px-3 py-2">
+                <div className="font-mono font-bold text-blue-700 text-sm">{s.name}</div>
+                <button onClick={() => onDelete(s.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <button onClick={onClose} className="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 text-xs tracking-widest rounded transition-colors">CERRAR</button>
+    </ModalShell>
+  );
+}
+
+function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSystem, onDeleteSystem, onUpdateIso }) {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [showSystemsModal, setShowSystemsModal] = useState(false);
+  const [editingIso, setEditingIso] = useState(null);
+  const [expandedWelders, setExpandedWelders] = useState({});
+  const [expandedSystems, setExpandedSystems] = useState({});
+  const [expandedSizes, setExpandedSizes] = useState({});
+
+  const toggleWelder = (id) => setExpandedWelders((p) => ({ ...p, [id]: !p[id] }));
+  const toggleSystem = (key) => setExpandedSystems((p) => ({ ...p, [key]: !p[key] }));
+  const toggleSize = (key) => setExpandedSizes((p) => ({ ...p, [key]: !p[key] }));
+
+  const getSystemName = (id) => systems.find((s) => s.id === id)?.name || "—";
+
+  // Filter isos by search (number or description)
+  const filteredIsos = isos.filter((i) =>
+    i.number.toLowerCase().includes(search.toLowerCase()) ||
+    (i.description || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Group filtered isos by welder (assigned)
+  const groupedIsos = welders.map((w) => ({
+    welder: w,
+    isos: filteredIsos.filter((i) => i.welderId === w.id),
+  })).filter((g) => g.isos.length > 0);
+
+  // Unassigned isos
+  const unassignedIsos = filteredIsos.filter((i) => !i.welderId);
+
+  // Build hierarchy: System -> Size -> ISOs (sorted by page)
+  const isosWithSystem = unassignedIsos.filter((i) => i.systemId && i.size);
+  const isosWithoutSystem = unassignedIsos.filter((i) => !i.systemId || !i.size);
+
+  const systemGroups = {};
+  isosWithSystem.forEach((iso) => {
+    const sysName = getSystemName(iso.systemId);
+    if (!systemGroups[sysName]) systemGroups[sysName] = {};
+    if (!systemGroups[sysName][iso.size]) systemGroups[sysName][iso.size] = [];
+    systemGroups[sysName][iso.size].push(iso);
+  });
+
+  // Sort sizes numerically and ISOs by page
+  Object.keys(systemGroups).forEach((sys) => {
+    Object.keys(systemGroups[sys]).forEach((size) => {
+      systemGroups[sys][size].sort((a, b) => (a.page || 0) - (b.page || 0));
+    });
+  });
+
+  const sortedSystemNames = Object.keys(systemGroups).sort();
+
+  // Helper to parse size for sorting (e.g. "6\"" -> 6, "2.00\"" -> 2)
+  const parseSize = (s) => parseFloat(String(s).replace(/[^0-9.]/g, "")) || 0;
+
+  const renderIsoTableRow = (iso, idx, isUnassignedSection = false) => (
+    <tr key={iso.id} className="hover:bg-slate-50">
+      <td className="px-5 py-3 font-mono text-blue-700 font-bold text-xs whitespace-nowrap">{iso.number}</td>
+      {iso.page ? <td className="px-5 py-3 text-slate-600 text-xs font-mono whitespace-nowrap">P. {iso.page}</td> : <td className="px-5 py-3 text-slate-300 text-xs">—</td>}
+      <td className="px-5 py-3 text-slate-600 text-xs hidden md:table-cell">{iso.description || "—"}</td>
+      <td className="px-5 py-3">
+        <select value={iso.welderId || ""} onChange={(e) => onAssign(iso.id, e.target.value || null)} className={selectCls + " max-w-[180px]"}>
+          <option value="">— Sin asignar —</option>
+          {welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
+        </select>
+      </td>
+      <td className="px-5 py-3 text-right whitespace-nowrap">
+        <button onClick={() => setEditingIso(iso)} className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 mr-1"><Edit2 size={14} /></button>
+        <button onClick={() => onDelete(iso.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"><Trash2 size={14} /></button>
+      </td>
+    </tr>
+  );
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-2">
         <div>
           <h2 className="text-2xl font-black tracking-tight text-slate-900">ISOMÉTRICOS</h2>
-          <p className="text-slate-500 text-xs tracking-wider font-semibold">SEGUIMIENTO DE PLANOS</p>
+          <p className="text-slate-500 text-xs tracking-wider font-semibold">{isos.length} TOTAL · {isos.filter((i) => i.welderId).length} ASIGNADOS · {unassignedIsos.length} SIN ASIGNAR · {systems.length} SISTEMAS</p>
         </div>
-        <button onClick={() => setShowModal(true)} className={btnPrimary}><Plus size={14} /> NUEVO ISO</button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowSystemsModal(true)} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 text-xs font-bold tracking-widest flex items-center gap-2 transition-colors rounded shadow-sm">
+            <Layers size={14} /> SISTEMAS
+          </button>
+          <button onClick={() => setShowModal(true)} className={btnPrimary}><Plus size={14} /> NUEVO ISO</button>
+        </div>
       </div>
+
       <div className="relative">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ISO..." className={inputCls + " pl-9"} />
       </div>
-      {isos.length === 0 ? <EmptyState icon={FileText} text="No hay ISOs registrados." /> : (
-        <Card noPadding>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-xs tracking-widest text-slate-600">
-                <tr>
-                  <th className="text-left px-4 py-3 font-bold">ISO</th>
-                  <th className="text-left px-4 py-3 font-bold hidden sm:table-cell">DESCRIPCIÓN</th>
-                  <th className="text-left px-4 py-3 font-bold">WELDER</th>
-                  <th className="text-right px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {isos.filter((i) => i.number.toLowerCase().includes(search.toLowerCase())).map((iso) => (
-                  <tr key={iso.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono text-blue-700 font-bold text-xs">{iso.number}</td>
-                    <td className="px-4 py-3 text-slate-600 text-xs hidden sm:table-cell">{iso.description || "—"}</td>
-                    <td className="px-4 py-3">
-                      <select value={iso.welderId || ""} onChange={(e) => onAssign(iso.id, e.target.value || null)} className={selectCls + " max-w-[180px]"}>
-                        <option value="">— Sin asignar —</option>
-                        {welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button onClick={() => onDelete(iso.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"><Trash2 size={14} /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+
+      {isos.length === 0 ? <EmptyState icon={FileText} text="No hay ISOs registrados." /> : filteredIsos.length === 0 ? (
+        <div className="bg-white border border-dashed border-slate-300 rounded-lg p-8 text-center text-slate-400 text-sm">
+          No se encontraron ISOs con "{search}"
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {/* WELDERS WITH ASSIGNED ISOs */}
+          {groupedIsos.map(({ welder, isos: welderIsos }) => {
+            const isExpanded = expandedWelders[welder.id];
+            return (
+              <div key={welder.id} className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                <button
+                  onClick={() => toggleWelder(welder.id)}
+                  className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+                      <HardHat size={18} />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-bold text-slate-900">{welder.name}</div>
+                      <div className="text-xs text-slate-500 font-mono">#{welder.welderId}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                      {welderIsos.length} {welderIsos.length === 1 ? "ISO" : "ISOs"}
+                    </span>
+                    {isExpanded ? <ChevronDown size={18} className="text-slate-400" /> : <ChevronRight size={18} className="text-slate-400" />}
+                  </div>
+                </button>
+                {isExpanded && (
+                  <div className="border-t border-slate-100">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-50 text-xs tracking-widest text-slate-600">
+                          <tr>
+                            <th className="text-left px-5 py-2 font-bold">ISO</th>
+                            <th className="text-left px-5 py-2 font-bold">PÁG.</th>
+                            <th className="text-left px-5 py-2 font-bold hidden md:table-cell">DESCRIPCIÓN</th>
+                            <th className="text-left px-5 py-2 font-bold">REASIGNAR</th>
+                            <th className="px-5 py-2"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {welderIsos.map((iso, idx) => renderIsoTableRow(iso, idx))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* UNASSIGNED GROUP - HIERARCHICAL */}
+          {unassignedIsos.length > 0 && (
+            <div className="bg-white border-2 border-amber-200 rounded-lg shadow-sm overflow-hidden">
+              <button
+                onClick={() => toggleWelder("__unassigned")}
+                className="w-full px-5 py-4 flex items-center justify-between hover:bg-amber-50/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0">
+                    <AlertCircle size={18} />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold text-amber-900">SIN ASIGNAR</div>
+                    <div className="text-xs text-amber-600">Clasificados por sistema · medida · página</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="bg-amber-100 border border-amber-300 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">
+                    {unassignedIsos.length} {unassignedIsos.length === 1 ? "ISO" : "ISOs"}
+                  </span>
+                  {expandedWelders["__unassigned"] ? <ChevronDown size={18} className="text-amber-600" /> : <ChevronRight size={18} className="text-amber-600" />}
+                </div>
+              </button>
+
+              {expandedWelders["__unassigned"] && (
+                <div className="border-t border-amber-200 bg-amber-50/30 p-3 space-y-2">
+                  {/* SYSTEMS */}
+                  {sortedSystemNames.map((sysName) => {
+                    const sysKey = `sys-${sysName}`;
+                    const sysExpanded = expandedSystems[sysKey];
+                    const sysSizes = Object.keys(systemGroups[sysName]).sort((a, b) => parseSize(a) - parseSize(b));
+                    const sysCount = sysSizes.reduce((sum, sz) => sum + systemGroups[sysName][sz].length, 0);
+                    return (
+                      <div key={sysKey} className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => toggleSystem(sysKey)}
+                          className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center font-mono font-bold text-xs">
+                              {sysName}
+                            </div>
+                            <div className="text-left">
+                              <div className="font-bold text-slate-900 font-mono">{sysName}</div>
+                              <div className="text-[10px] text-slate-500">Sistema</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="bg-slate-100 text-slate-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                              {sysCount} {sysCount === 1 ? "ISO" : "ISOs"}
+                            </span>
+                            {sysExpanded ? <ChevronDown size={16} className="text-slate-400" /> : <ChevronRight size={16} className="text-slate-400" />}
+                          </div>
+                        </button>
+
+                        {sysExpanded && (
+                          <div className="border-t border-slate-100 bg-slate-50/50 p-2 space-y-1.5">
+                            {/* SIZES */}
+                            {sysSizes.map((size) => {
+                              const sizeKey = `${sysKey}-${size}`;
+                              const sizeExpanded = expandedSizes[sizeKey];
+                              const sizeIsos = systemGroups[sysName][size];
+                              return (
+                                <div key={sizeKey} className="bg-white border border-slate-200 rounded">
+                                  <button
+                                    onClick={() => toggleSize(sizeKey)}
+                                    className="w-full px-3 py-2 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-7 h-7 rounded bg-blue-50 text-blue-700 flex items-center justify-center font-mono font-bold text-[11px]">
+                                        {size}
+                                      </div>
+                                      <div className="font-mono font-semibold text-slate-700 text-sm">{size}</div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="bg-blue-50 text-blue-700 text-[11px] font-bold px-2 py-0.5 rounded-full">
+                                        {sizeIsos.length}
+                                      </span>
+                                      {sizeExpanded ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
+                                    </div>
+                                  </button>
+                                  {sizeExpanded && (
+                                    <div className="border-t border-slate-100">
+                                      <table className="w-full text-sm">
+                                        <thead className="bg-slate-50 text-[10px] tracking-widest text-slate-600">
+                                          <tr>
+                                            <th className="text-left px-3 py-1.5 font-bold">ISO</th>
+                                            <th className="text-left px-3 py-1.5 font-bold">PÁG.</th>
+                                            <th className="text-left px-3 py-1.5 font-bold hidden md:table-cell">DESC.</th>
+                                            <th className="text-left px-3 py-1.5 font-bold">ASIGNAR A</th>
+                                            <th className="px-3 py-1.5"></th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                          {sizeIsos.map((iso) => (
+                                            <tr key={iso.id} className="hover:bg-slate-50">
+                                              <td className="px-3 py-2 font-mono text-blue-700 font-bold text-xs whitespace-nowrap">{iso.number}</td>
+                                              <td className="px-3 py-2 text-slate-700 text-xs font-mono">P. {iso.page}</td>
+                                              <td className="px-3 py-2 text-slate-600 text-xs hidden md:table-cell">{iso.description || "—"}</td>
+                                              <td className="px-3 py-2">
+                                                <select value={iso.welderId || ""} onChange={(e) => onAssign(iso.id, e.target.value || null)} className={selectCls + " max-w-[160px] text-xs"}>
+                                                  <option value="">— Sin asignar —</option>
+                                                  {welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
+                                                </select>
+                                              </td>
+                                              <td className="px-3 py-2 text-right whitespace-nowrap">
+                                                <button onClick={() => setEditingIso(iso)} className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 mr-1"><Edit2 size={12} /></button>
+                                                <button onClick={() => onDelete(iso.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"><Trash2 size={12} /></button>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* UNCLASSIFIED ISOs (sin sistema o sin medida) */}
+                  {isosWithoutSystem.length > 0 && (
+                    <div className="bg-white border-2 border-orange-200 rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => toggleSystem("__unclassified")}
+                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-md bg-orange-100 text-orange-700 flex items-center justify-center">
+                            <AlertCircle size={16} />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-bold text-orange-900 text-sm">SIN CLASIFICAR</div>
+                            <div className="text-[10px] text-orange-600">ISOs viejos sin sistema/medida — edítalos</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="bg-orange-100 text-orange-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                            {isosWithoutSystem.length}
+                          </span>
+                          {expandedSystems["__unclassified"] ? <ChevronDown size={16} className="text-orange-600" /> : <ChevronRight size={16} className="text-orange-600" />}
+                        </div>
+                      </button>
+                      {expandedSystems["__unclassified"] && (
+                        <div className="border-t border-orange-100">
+                          <table className="w-full text-sm">
+                            <thead className="bg-orange-50/50 text-[10px] tracking-widest text-orange-800">
+                              <tr>
+                                <th className="text-left px-3 py-1.5 font-bold">ISO</th>
+                                <th className="text-left px-3 py-1.5 font-bold hidden md:table-cell">DESC.</th>
+                                <th className="text-left px-3 py-1.5 font-bold">EDITAR</th>
+                                <th className="px-3 py-1.5"></th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {isosWithoutSystem.map((iso) => (
+                                <tr key={iso.id} className="hover:bg-slate-50">
+                                  <td className="px-3 py-2 font-mono text-blue-700 font-bold text-xs">{iso.number}</td>
+                                  <td className="px-3 py-2 text-slate-600 text-xs hidden md:table-cell">{iso.description || "—"}</td>
+                                  <td className="px-3 py-2">
+                                    <button onClick={() => setEditingIso(iso)} className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 text-[10px] font-bold tracking-widest rounded transition-colors flex items-center gap-1">
+                                      <Edit2 size={10} /> CLASIFICAR
+                                    </button>
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    <button onClick={() => onDelete(iso.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"><Trash2 size={12} /></button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
-      {showModal && <IsoModal onClose={() => setShowModal(false)} onSave={onAdd} welders={welders} />}
+
+      {showModal && <IsoModal onClose={() => setShowModal(false)} onSave={onAdd} welders={welders} systems={systems} />}
+      {editingIso && <IsoModal onClose={() => setEditingIso(null)} onSave={(data) => { onUpdateIso(editingIso.id, data); setEditingIso(null); }} welders={welders} systems={systems} editing={editingIso} />}
+      {showSystemsModal && <SystemsModal onClose={() => setShowSystemsModal(false)} systems={systems} onAdd={onAddSystem} onDelete={onDeleteSystem} />}
     </div>
   );
 }
