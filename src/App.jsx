@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Users, FileText, BarChart3, Trash2, CheckCircle2, XCircle, X, Search, Wrench, ClipboardList, Calendar, AlertCircle, Edit2, LogOut, Shield, HardHat, Eye, LogIn, Menu, BookOpen, ShieldCheck, Thermometer, FileCheck, AlertTriangle, ChevronRight, ChevronDown, Award, Layers, Droplet, Sparkles, Link2 } from "lucide-react";
+import { Plus, Users, FileText, BarChart3, Trash2, CheckCircle2, XCircle, X, Search, Wrench, ClipboardList, Calendar, AlertCircle, Edit2, LogOut, Shield, HardHat, Eye, LogIn, Menu, BookOpen, ShieldCheck, Thermometer, FileCheck, AlertTriangle, ChevronRight, ChevronDown, Award, Layers, Droplet, Sparkles, Link2, TrendingUp, Activity, PieChart as PieChartIcon } from "lucide-react";
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const STORAGE_KEY = "weld_app_v4";
 
@@ -499,6 +500,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
     { id: "logs", icon: ClipboardList, label: "DAILY LOG" },
     { id: "inspections", icon: Eye, label: "QC" },
     { id: "tools", icon: Wrench, label: "TOOLS" },
+    { id: "charts", icon: TrendingUp, label: "CHARTS" },
     { id: "codes", icon: BookOpen, label: "CODES" },
   ] : role === "qc" ? [
     { id: "dashboard", icon: BarChart3, label: "DASHBOARD" },
@@ -604,6 +606,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
         {view === "logs" && <LogsView role={role} currentUser={currentUser} logs={visibleLogs} welders={data.welders} isos={data.isos} inspections={data.inspections} onSaveLog={saveLog} onDeleteLog={deleteLog} onAddEntry={addEntry} onDeleteEntry={deleteEntry} onUpdateEntry={updateEntry} />}
         {view === "inspections" && (role === "admin" || role === "qc") && <InspectionsView role={role} logs={data.dailyLogs} welders={data.welders} inspections={data.inspections} onAdd={addInspection} onDelete={deleteInspection} />}
         {view === "tools" && <ToolsView role={role} currentUser={currentUser} tools={data.tools} welders={data.welders} onAdd={addTool} onDelete={deleteTool} onReassign={reassignTool} />}
+        {view === "charts" && role === "admin" && <ChartsView data={data} getEntryRef={getEntryRef} />}
         {view === "codes" && <CodesView />}
       </main>
     </div>
@@ -1595,6 +1598,257 @@ function ToolsView({ role, currentUser, tools, welders, onAdd, onDelete, onReass
         </div>
       )}
       {showModal && <ToolModal onClose={() => setShowModal(false)} onSave={onAdd} welders={welders} />}
+    </div>
+  );
+}
+
+function ChartsView({ data, getEntryRef }) {
+  const [dateRange, setDateRange] = useState("all");
+  const [selectedWelder, setSelectedWelder] = useState("all");
+
+  // Filter logs by date range
+  const filterByDate = (date) => {
+    if (dateRange === "all") return true;
+    const logDate = new Date(date + "T00:00:00");
+    const now = new Date();
+    const daysAgo = (now - logDate) / (1000 * 60 * 60 * 24);
+    if (dateRange === "week") return daysAgo <= 7;
+    if (dateRange === "month") return daysAgo <= 30;
+    if (dateRange === "quarter") return daysAgo <= 90;
+    return true;
+  };
+
+  // Filter logs by selected welder
+  const filteredLogs = data.dailyLogs.filter((l) => {
+    if (selectedWelder !== "all" && l.welderId !== selectedWelder) return false;
+    return filterByDate(l.date);
+  });
+
+  // Build all entries with status
+  const allEntries = filteredLogs.flatMap((l) =>
+    l.entries.map((e) => {
+      const insp = data.inspections.find((i) => i.weldRef === getEntryRef(l.id, e.id));
+      return {
+        date: l.date,
+        welderId: l.welderId,
+        status: insp ? insp.status : "pending",
+      };
+    })
+  );
+
+  // ===== GLOBAL METRICS =====
+  const total = allEntries.length;
+  const accepted = allEntries.filter((e) => e.status === "accepted").length;
+  const rejected = allEntries.filter((e) => e.status === "rejected").length;
+  const pending = allEntries.filter((e) => e.status === "pending").length;
+  const acceptRate = total > 0 ? ((accepted / total) * 100).toFixed(1) : "0.0";
+  const rejectRate = total > 0 ? ((rejected / total) * 100).toFixed(1) : "0.0";
+
+  // ===== TIMELINE DATA (line chart) =====
+  // Group by date
+  const timelineMap = {};
+  allEntries.forEach((e) => {
+    if (!timelineMap[e.date]) timelineMap[e.date] = { date: e.date, accepted: 0, rejected: 0, pending: 0 };
+    timelineMap[e.date][e.status]++;
+  });
+  const timelineData = Object.values(timelineMap)
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .map((d) => ({
+      ...d,
+      label: new Date(d.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "2-digit" }),
+      total: d.accepted + d.rejected + d.pending,
+    }));
+
+  // ===== BY WELDER (bar chart) =====
+  const welderData = data.welders.map((w) => {
+    const wEntries = allEntries.filter((e) => e.welderId === w.id);
+    return {
+      name: w.name.length > 12 ? w.name.substring(0, 12) + "…" : w.name,
+      fullName: w.name,
+      welderId: w.welderId,
+      accepted: wEntries.filter((e) => e.status === "accepted").length,
+      rejected: wEntries.filter((e) => e.status === "rejected").length,
+      pending: wEntries.filter((e) => e.status === "pending").length,
+      total: wEntries.length,
+    };
+  }).filter((w) => w.total > 0).sort((a, b) => b.total - a.total);
+
+  // ===== PIE CHART DATA =====
+  const pieData = [
+    { name: "Accepted", value: accepted, color: "#10b981" },
+    { name: "Rejected", value: rejected, color: "#ef4444" },
+    { name: "Pending", value: pending, color: "#f59e0b" },
+  ].filter((d) => d.value > 0);
+
+  const dateRangeLabels = { all: "TODO EL TIEMPO", week: "ÚLTIMA SEMANA", month: "ÚLTIMO MES", quarter: "ÚLTIMOS 90 DÍAS" };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-black tracking-tight text-slate-900 mb-1">CHARTS &amp; ANALYTICS</h2>
+        <p className="text-slate-500 text-xs tracking-wider font-semibold">PROGRESO Y RENDIMIENTO DE SOLDADURAS</p>
+      </div>
+
+      {/* FILTERS */}
+      <Card>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="RANGO DE FECHA">
+            <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className={selectCls}>
+              <option value="all">Todo el tiempo</option>
+              <option value="week">Última semana</option>
+              <option value="month">Último mes</option>
+              <option value="quarter">Últimos 90 días</option>
+            </select>
+          </Field>
+          <Field label="SOLDADOR">
+            <select value={selectedWelder} onChange={(e) => setSelectedWelder(e.target.value)} className={selectCls}>
+              <option value="all">Todos los soldadores</option>
+              {data.welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
+            </select>
+          </Field>
+        </div>
+        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
+          <Activity size={12} />
+          <span className="tracking-widest font-semibold">VIENDO: {dateRangeLabels[dateRange]} {selectedWelder !== "all" ? "· " + (data.welders.find(w => w.id === selectedWelder)?.name || "") : ""}</span>
+        </div>
+      </Card>
+
+      {/* KPI CARDS */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KPI label="TOTAL WELDS" value={total} sub="en el período" color="blue" />
+        <KPI label="ACCEPTED" value={accepted} sub={`${acceptRate}% del total`} color="emerald" />
+        <KPI label="REJECTED" value={rejected} sub={`${rejectRate}% del total`} color="red" />
+        <KPI label="PENDING" value={pending} sub="por inspeccionar" color="amber" />
+      </div>
+
+      {total === 0 ? (
+        <EmptyState icon={BarChart3} text="No hay datos en el rango seleccionado. Cambia los filtros o registra welds." />
+      ) : (
+        <>
+          {/* TIMELINE LINE CHART */}
+          <Card title="EVOLUCIÓN EN EL TIEMPO" subtitle="welds por día">
+            <div className="w-full" style={{ height: 320 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={timelineData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#64748b" }} stroke="#cbd5e1" />
+                  <YAxis tick={{ fontSize: 11, fill: "#64748b" }} stroke="#cbd5e1" allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "white", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "12px" }}
+                    labelStyle={{ fontWeight: "bold", color: "#1e293b" }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: "12px" }} iconType="circle" />
+                  <Line type="monotone" dataKey="accepted" name="Accepted" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="rejected" name="Rejected" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="pending" name="Pending" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
+          {/* GRID: BAR + PIE */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* BAR CHART BY WELDER */}
+            <Card title="POR SOLDADOR" subtitle="ranking de welds">
+              {welderData.length === 0 ? (
+                <div className="text-center text-slate-400 text-sm py-8">No hay datos por soldador.</div>
+              ) : (
+                <div className="w-full" style={{ height: 320 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={welderData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#64748b" }} stroke="#cbd5e1" angle={-15} textAnchor="end" height={50} />
+                      <YAxis tick={{ fontSize: 11, fill: "#64748b" }} stroke="#cbd5e1" allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "white", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "12px" }}
+                        labelStyle={{ fontWeight: "bold", color: "#1e293b" }}
+                        labelFormatter={(label, payload) => {
+                          const item = payload && payload[0] && payload[0].payload;
+                          return item ? `${item.fullName} (#${item.welderId})` : label;
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: "12px" }} iconType="circle" />
+                      <Bar dataKey="accepted" name="Accepted" stackId="a" fill="#10b981" />
+                      <Bar dataKey="rejected" name="Rejected" stackId="a" fill="#ef4444" />
+                      <Bar dataKey="pending" name="Pending" stackId="a" fill="#f59e0b" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </Card>
+
+            {/* PIE CHART */}
+            <Card title="DISTRIBUCIÓN GLOBAL" subtitle="% del total">
+              <div className="w-full" style={{ height: 320 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={3}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={false}
+                      style={{ fontSize: "12px", fontWeight: "bold" }}
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "white", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "12px" }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: "12px" }} iconType="circle" />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          </div>
+
+          {/* WELDER PERFORMANCE TABLE */}
+          {welderData.length > 0 && (
+            <Card title="DESEMPEÑO POR SOLDADOR" subtitle="% de aceptación" noPadding>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-xs tracking-widest text-slate-600">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-bold">SOLDADOR</th>
+                      <th className="text-right px-4 py-3 font-bold">TOTAL</th>
+                      <th className="text-right px-4 py-3 font-bold">✓ OK</th>
+                      <th className="text-right px-4 py-3 font-bold">✗ RX</th>
+                      <th className="text-right px-4 py-3 font-bold">PENDING</th>
+                      <th className="text-right px-4 py-3 font-bold">% ACEPTACIÓN</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {welderData.map((w) => {
+                      const rate = w.total > 0 ? ((w.accepted / w.total) * 100).toFixed(1) : "0.0";
+                      const rateColor = parseFloat(rate) >= 90 ? "text-emerald-600" : parseFloat(rate) >= 70 ? "text-amber-600" : "text-red-600";
+                      return (
+                        <tr key={w.welderId} className="hover:bg-slate-50">
+                          <td className="px-4 py-3">
+                            <div className="font-bold text-slate-900">{w.fullName}</div>
+                            <div className="text-xs text-slate-500 font-mono">#{w.welderId}</div>
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono font-bold">{w.total}</td>
+                          <td className="px-4 py-3 text-right font-mono text-emerald-600 font-bold">{w.accepted}</td>
+                          <td className="px-4 py-3 text-right font-mono text-red-600 font-bold">{w.rejected}</td>
+                          <td className="px-4 py-3 text-right font-mono text-amber-600 font-bold">{w.pending}</td>
+                          <td className={`px-4 py-3 text-right font-mono text-lg font-black ${rateColor}`}>{rate}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </>
+      )}
     </div>
   );
 }
