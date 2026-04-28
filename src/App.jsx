@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Users, FileText, BarChart3, Trash2, CheckCircle2, XCircle, X, Search, Wrench, ClipboardList, Calendar, AlertCircle, Edit2, LogOut, Shield, HardHat, Eye, LogIn, Menu } from "lucide-react";
+import { Plus, Users, FileText, BarChart3, Trash2, CheckCircle2, XCircle, X, Search, Wrench, ClipboardList, Calendar, AlertCircle, Edit2, LogOut, Shield, HardHat, Eye, LogIn, Menu, BookOpen, ShieldCheck, Thermometer, FileCheck, AlertTriangle, ChevronRight, Award, Layers, Droplet, Sparkles, Link2 } from "lucide-react";
 
 const STORAGE_KEY = "weld_app_v4";
 
@@ -166,6 +166,264 @@ function LoginScreen({ users, welders, onLogin }) {
     </div>
   );
 }
+
+function CodesView() {
+  const [activeSection, setActiveSection] = useState("welding");
+
+  const codes = [
+    { code: "ASME B31.3", chapter: "Chapter X", title: "High Purity Piping", year: "2024" },
+    { code: "ASME BPE", chapter: "—", title: "Bioprocessing Equipment", year: "2022" },
+    { code: "3-A SSI", chapter: "—", title: "Sanitary Standards", year: "Current" },
+    { code: "FDA 21 CFR", chapter: "Part 177", title: "Food Contact", year: "Current" },
+  ];
+
+  const sections = [
+    {
+      id: "welding",
+      title: "Soldadura Orbital",
+      ref: "U328 — Welding",
+      icon: Wrench,
+      color: "blue",
+      summary: "GTAW orbital autógena es el proceso obligatorio para tubería sanitaria.",
+      points: [
+        { label: "Proceso requerido", value: "GTAW Orbital Autógena (sin filler)" },
+        { label: "Excepciones manuales", value: "Solo tack welds o donde la cabeza orbital no aplique (con aprobación del owner)" },
+        { label: "Gas de purga (back-purge)", value: "Argón 99.999% mín. — cambio de tipo requiere requalificación WPS" },
+        { label: "Tack welds", value: "Deben consumirse completamente al soldar el pase final" },
+        { label: "WPS / WPQ", value: "Calificados conforme a ASME Sec. IX + criterios de ASME BPE" },
+      ],
+    },
+    {
+      id: "coupons",
+      title: "Weld Coupons",
+      ref: "U328.4.4 / U344.8",
+      icon: FileCheck,
+      color: "indigo",
+      summary: "Cupones de prueba obligatorios al inicio de cada turno y tras cualquier cambio.",
+      points: [
+        { label: "Frecuencia mínima", value: "Al inicio de cada turno (start-of-shift)" },
+        { label: "Cambio de gas de purga", value: "Requiere nuevo cupón antes de producir" },
+        { label: "Cambio de power supply", value: "Requiere nuevo cupón" },
+        { label: "Cambio de electrodo de tungsteno", value: "Requiere nuevo cupón" },
+        { label: "Cambio de O.D. o espesor", value: "Requiere nuevo cupón" },
+        { label: "Cambio de operador", value: "Cada operador debe tener su cupón representativo" },
+      ],
+    },
+    {
+      id: "joints",
+      title: "Juntas Sanitarias",
+      ref: "U335.7 / U335.8",
+      icon: Link2,
+      color: "cyan",
+      summary: "Tri-Clamp, face seal y hygienic clamp joints para conexiones desmontables.",
+      points: [
+        { label: "Hygienic Clamp (Tri-Clamp)", value: "Ferrules Tipo A (¼\"–1\") y Tipo B (≥1\") según ASME BPE" },
+        { label: "Tipos de clamp", value: "Two-piece single/double pin, three-piece, two-bolt heavy duty" },
+        { label: "Metal Face Seal", value: "Permitido — instalación según fabricante (gland + gasket metálico)" },
+        { label: "Compression fittings", value: "Permitidos solo si stress intensity factor ≤ 1.5" },
+        { label: "Threaded joints", value: "Evitar siempre que sea posible (U314)" },
+        { label: "Brazing / Soldering", value: "❌ NO permitido en High Purity (U333)" },
+      ],
+    },
+    {
+      id: "materials",
+      title: "Materiales & Acabado",
+      ref: "U323 / ASME BPE Part SF",
+      icon: Layers,
+      color: "violet",
+      summary: "Aceros inoxidables austeníticos con acabado interior controlado.",
+      points: [
+        { label: "Materiales típicos", value: "316L (UNS S31603), 304L, dúplex, aleaciones de níquel" },
+        { label: "Carbono máximo", value: "0.030% (grado L) para evitar sensibilización por soldadura" },
+        { label: "Acabado SF1 mecánico", value: "Ra ≤ 0.51 μm (20 μin) — superficie en contacto con producto" },
+        { label: "Acabado SF4 electropulido", value: "Ra ≤ 0.38 μm (15 μin) — productos farmacéuticos críticos" },
+        { label: "Pasivación", value: "Requerida post-fabricación (ácido cítrico o nítrico)" },
+        { label: "Trazabilidad MTR", value: "Heat number en cada componente (tubería, fittings, válvulas)" },
+      ],
+    },
+    {
+      id: "preparation",
+      title: "Preparación de Bordes",
+      ref: "U328.4.2",
+      icon: Sparkles,
+      color: "orange",
+      summary: "Preparación de extremos según espesor y tipo de soldadura orbital.",
+      points: [
+        { label: "Pared ≤ 3.18 mm (0.125\")", value: "Square cut según ASME BPE / SEMI" },
+        { label: "Pared 4.76 – 22.22 mm", value: "Bisel \"J\" o modificado conforme ASME B16.25" },
+        { label: "Land thickness", value: "1.5 mm (1/16\") — extensión ≥ land" },
+        { label: "Root opening", value: "0 a 0.8 mm (0 a 1/32\")" },
+        { label: "Alineación interna", value: "Hi-lo dentro de tolerancia ASME BPE (típ. ≤ 15% espesor)" },
+        { label: "Limpieza pre-soldadura", value: "Solvente sin residuos, libre de aceites y marcas" },
+      ],
+    },
+    {
+      id: "examination",
+      title: "Examinación",
+      ref: "U341 / U344",
+      icon: Eye,
+      color: "emerald",
+      summary: "Inspección visual interna con borescopio + cupones documentados.",
+      points: [
+        { label: "Visual externa (VT)", value: "100% de soldaduras — color, perfil, alineación" },
+        { label: "Borescopia interna", value: "Aceptable y recomendada (U344.2) — penetración y decoloración" },
+        { label: "Cupones de producción", value: "Sustituyen al 5% RT cuando se usa orbital GTAW" },
+        { label: "Color/oxidación interna", value: "Según ASME BPE Tabla MJ-8.4 (typically AWS D18.1/D18.2)" },
+        { label: "Defectos no permitidos", value: "Concavidad excesiva, falta de fusión, óxido suelto, grieta" },
+        { label: "Examinador", value: "Independiente del soldador (U342.2) — calificado SNT-TC-1A" },
+      ],
+    },
+    {
+      id: "documentation",
+      title: "Documentación",
+      ref: "ASME BPE Part GR",
+      icon: ShieldCheck,
+      color: "rose",
+      summary: "Trazabilidad completa de cada soldadura y prueba para auditoría.",
+      points: [
+        { label: "Weld Map / ISO", value: "Cada soldadura numerada y asignada a su soldador" },
+        { label: "Weld Log", value: "Fecha, turno, programa orbital, head, gas, lot del tubo" },
+        { label: "Coupon Log", value: "Resultado de cada cupón con fotografía/borescopia" },
+        { label: "Reporte de pasivación", value: "Método, concentración, tiempo, prueba de hierro libre" },
+        { label: "MTRs", value: "Por cada heat de tubería, fitting y filler (si aplica)" },
+        { label: "Turn-Over Package (TOP)", value: "Entrega final al owner con todo el legajo" },
+      ],
+    },
+  ];
+
+  const colorMap = {
+    blue: { bg: "bg-blue-50", border: "border-blue-200", icon: "bg-blue-100 text-blue-700", accent: "bg-blue-700", text: "text-blue-700" },
+    indigo: { bg: "bg-indigo-50", border: "border-indigo-200", icon: "bg-indigo-100 text-indigo-700", accent: "bg-indigo-700", text: "text-indigo-700" },
+    cyan: { bg: "bg-cyan-50", border: "border-cyan-200", icon: "bg-cyan-100 text-cyan-700", accent: "bg-cyan-600", text: "text-cyan-700" },
+    violet: { bg: "bg-violet-50", border: "border-violet-200", icon: "bg-violet-100 text-violet-700", accent: "bg-violet-600", text: "text-violet-700" },
+    orange: { bg: "bg-orange-50", border: "border-orange-200", icon: "bg-orange-100 text-orange-700", accent: "bg-orange-600", text: "text-orange-700" },
+    emerald: { bg: "bg-emerald-50", border: "border-emerald-200", icon: "bg-emerald-100 text-emerald-700", accent: "bg-emerald-600", text: "text-emerald-700" },
+    rose: { bg: "bg-rose-50", border: "border-rose-200", icon: "bg-rose-100 text-rose-700", accent: "bg-rose-600", text: "text-rose-700" },
+  };
+
+  const active = sections.find((s) => s.id === activeSection);
+  const activeColors = colorMap[active.color];
+  const ActiveIcon = active.icon;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-black tracking-tight text-slate-900 mb-1">SANITARY WELDING CODES</h2>
+        <p className="text-slate-500 text-xs tracking-wider font-semibold">REFERENCIA TÉCNICA · TUBERÍA DE ALTA PUREZA</p>
+      </div>
+
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-blue-900 to-cyan-900 text-white shadow-xl">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-400 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-400 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+        </div>
+        <div className="relative px-6 py-8 sm:px-8 sm:py-10">
+          <div className="flex items-start justify-between flex-wrap gap-6">
+            <div className="flex items-start gap-5">
+              <div className="w-16 h-16 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20 flex-shrink-0">
+                <Droplet className="w-8 h-8 text-cyan-300" />
+              </div>
+              <div>
+                <div className="flex items-center gap-3 mb-2 flex-wrap">
+                  <span className="px-3 py-1 text-[10px] font-bold tracking-widest uppercase bg-cyan-500/20 text-cyan-200 rounded-full border border-cyan-400/30">High Purity Fluid Service</span>
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-black tracking-tight leading-none">SANITARY PIPING</h1>
+                <p className="text-xl sm:text-2xl font-light mt-2 text-cyan-100">Aplicaciones farmacéuticas, biotech y alimentos</p>
+                <p className="text-sm text-slate-400 mt-1">Pharmaceutical · Biotech · Food &amp; Beverage · Cosmetics</p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 text-right">
+              <div className="flex items-center gap-2 text-xs text-slate-300 justify-end">
+                <Award className="w-4 h-4" />
+                <span className="tracking-wider uppercase">ASME · 3-A · FDA Compliant</span>
+              </div>
+              <div className="text-xs text-slate-400">cGMP · Bioprocessing</div>
+            </div>
+          </div>
+
+          <div className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {codes.map((c) => (
+              <div key={c.code} className="bg-white/5 backdrop-blur-sm rounded-lg px-4 py-3 border border-white/10">
+                <div className="text-[10px] text-cyan-300 uppercase tracking-wider font-bold">{c.code}</div>
+                <div className="text-sm font-bold text-white mt-0.5">{c.title}</div>
+                <div className="text-[10px] text-slate-400 mt-1">{c.chapter} · {c.year}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+        {sections.map((section) => {
+          const Icon = section.icon;
+          const colors = colorMap[section.color];
+          const isActive = activeSection === section.id;
+          return (
+            <button
+              key={section.id}
+              onClick={() => setActiveSection(section.id)}
+              className={`p-4 rounded-xl border-2 transition-all text-left ${
+                isActive
+                  ? `${colors.bg} ${colors.border} shadow-md scale-[1.02]`
+                  : `bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm`
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${isActive ? colors.icon : "bg-slate-100 text-slate-600"}`}>
+                <Icon className="w-5 h-5" />
+              </div>
+              <div className={`text-[10px] font-bold tracking-wider uppercase ${isActive ? colors.text : "text-slate-500"}`}>
+                {section.ref.split("—")[0].trim()}
+              </div>
+              <div className={`text-sm font-bold mt-1 ${isActive ? "text-slate-900" : "text-slate-700"}`}>
+                {section.title}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className={`px-6 py-5 sm:px-8 sm:py-6 border-b border-slate-200 ${activeColors.bg}`}>
+          <div className="flex items-start gap-4">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${activeColors.icon} flex-shrink-0`}>
+              <ActiveIcon className="w-6 h-6" />
+            </div>
+            <div>
+              <div className={`text-[10px] font-bold tracking-widest uppercase ${activeColors.text}`}>
+                {active.ref}
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{active.title}</h3>
+              <p className="text-sm text-slate-600 mt-1 max-w-3xl">{active.summary}</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-6 sm:p-8">
+          <div className="text-[10px] font-bold tracking-widest uppercase text-slate-500 mb-4">Requisitos Clave</div>
+          <div className="space-y-2">
+            {active.points.map((point, idx) => (
+              <div key={idx} className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 p-3 rounded-lg hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0">
+                <div className={`text-xs font-bold tracking-wider uppercase ${activeColors.text} sm:col-span-1`}>
+                  {point.label}
+                </div>
+                <div className="text-sm text-slate-700 leading-relaxed sm:col-span-2">
+                  {point.value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 sm:p-5 flex items-start gap-3">
+        <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+        <div className="text-xs sm:text-sm text-amber-900">
+          <strong className="font-bold">Aviso de cumplimiento:</strong> Este resumen es una referencia operativa para tubería sanitaria/alta pureza. Toda calificación, soldadura, examinación y prueba debe ejecutarse conforme al texto íntegro de <strong>ASME B31.3-2024 Chapter X</strong>, <strong>ASME BPE</strong> y a las especificaciones del proyecto. En caso de discrepancia, prevalece el código y la spec del owner.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppShell({ data, setData, currentUser, logout, view, setView }) {
   const role = currentUser.role;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -241,14 +499,17 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
     { id: "logs", icon: ClipboardList, label: "DAILY LOG" },
     { id: "inspections", icon: Eye, label: "QC" },
     { id: "tools", icon: Wrench, label: "TOOLS" },
+    { id: "codes", icon: BookOpen, label: "CODES" },
   ] : role === "qc" ? [
     { id: "dashboard", icon: BarChart3, label: "DASHBOARD" },
     { id: "logs", icon: ClipboardList, label: "DAILY LOG" },
     { id: "inspections", icon: CheckCircle2, label: "INSPECT" },
+    { id: "codes", icon: BookOpen, label: "CODES" },
   ] : [
     { id: "dashboard", icon: BarChart3, label: "MY DASHBOARD" },
     { id: "logs", icon: ClipboardList, label: "MY DAILY LOGS" },
     { id: "tools", icon: Wrench, label: "MY TOOLS" },
+    { id: "codes", icon: BookOpen, label: "CODES" },
   ];
 
   const stats = totalStats();
@@ -343,6 +604,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
         {view === "logs" && <LogsView role={role} currentUser={currentUser} logs={visibleLogs} welders={data.welders} isos={data.isos} inspections={data.inspections} onSaveLog={saveLog} onDeleteLog={deleteLog} onAddEntry={addEntry} onDeleteEntry={deleteEntry} onUpdateEntry={updateEntry} />}
         {view === "inspections" && (role === "admin" || role === "qc") && <InspectionsView role={role} logs={data.dailyLogs} welders={data.welders} inspections={data.inspections} onAdd={addInspection} onDelete={deleteInspection} />}
         {view === "tools" && <ToolsView role={role} currentUser={currentUser} tools={data.tools} welders={data.welders} onAdd={addTool} onDelete={deleteTool} onReassign={reassignTool} />}
+        {view === "codes" && <CodesView />}
       </main>
     </div>
   );
