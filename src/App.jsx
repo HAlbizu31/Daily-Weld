@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Users, FileText, BarChart3, Trash2, CheckCircle2, XCircle, X, Search, Wrench, ClipboardList, Calendar, AlertCircle, Edit2, LogOut, Shield, HardHat, Eye, LogIn, Menu, BookOpen, ShieldCheck, Thermometer, FileCheck, AlertTriangle, ChevronRight, Award, Layers, Droplet, Sparkles, Link2 } from "lucide-react";
+import { Plus, Users, FileText, BarChart3, Trash2, CheckCircle2, XCircle, X, Search, Wrench, ClipboardList, Calendar, AlertCircle, Edit2, LogOut, Shield, HardHat, Eye, LogIn, Menu, BookOpen, ShieldCheck, Thermometer, FileCheck, AlertTriangle, ChevronRight, ChevronDown, Award, Layers, Droplet, Sparkles, Link2 } from "lucide-react";
 
 const STORAGE_KEY = "weld_app_v4";
 
@@ -956,80 +956,139 @@ function LogsView({ role, currentUser, logs, welders, isos, inspections, onSaveL
   const [editingLog, setEditingLog] = useState(null);
   const [activeLogId, setActiveLogId] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null);
+  const [expandedWelderLogs, setExpandedWelderLogs] = useState({});
   const canEdit = role === "admin" || role === "welder";
   const canCreate = role === "welder" || role === "admin";
 
-  // === Admin view: unified table like the PDF ===
+  // === Admin view: grouped by welder with collapsible cards ===
   if (role === "admin") {
-    const allRows = [];
-    [...logs].sort((a, b) => new Date(b.date) - new Date(a.date)).forEach((log) => {
-      const welder = welders.find((w) => w.id === log.welderId);
-      log.entries.forEach((e) => {
-        const insp = inspections.find((i) => i.weldRef === `${log.id}-${e.id}`);
-        allRows.push({ log, welder, entry: e, insp });
-      });
-    });
+    const totalWelds = logs.reduce((s, l) => s + l.entries.length, 0);
+    const totalPending = logs.reduce((s, l) => s + l.entries.filter((e) => !inspections.find((i) => i.weldRef === `${l.id}-${e.id}`)).length, 0);
+
+    // Group logs by welder
+    const grouped = welders.map((w) => {
+      const welderLogs = logs.filter((l) => l.welderId === w.id).sort((a, b) => new Date(b.date) - new Date(a.date));
+      const welderWeldsCount = welderLogs.reduce((s, l) => s + l.entries.length, 0);
+      return { welder: w, logs: welderLogs, weldsCount: welderWeldsCount };
+    }).filter((g) => g.logs.length > 0);
 
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center flex-wrap gap-2">
           <div>
             <h2 className="text-2xl font-black tracking-tight text-slate-900">DAILY WELD LOG</h2>
-            <p className="text-slate-500 text-xs tracking-wider font-semibold">{logs.length} REPORTS · {allRows.length} WELDS · {allRows.filter(r => !r.insp).length} PENDING</p>
+            <p className="text-slate-500 text-xs tracking-wider font-semibold">{logs.length} REPORTS · {totalWelds} WELDS · {totalPending} PENDING</p>
           </div>
           <button onClick={() => { setEditingLog(null); setShowLogModal(true); }} disabled={welders.length === 0} className={btnPrimary + " disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"}>
             <Plus size={14} /> NEW LOG
           </button>
         </div>
 
-        {allRows.length === 0 ? <EmptyState icon={ClipboardList} text="No welds registered yet." /> : (
-          <Card noPadding>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-50 text-slate-600 uppercase tracking-wider border-b border-slate-200">
-                  <tr>
-                    <th className="text-left px-3 py-3 font-bold">DATE</th>
-                    <th className="text-left px-3 py-3 font-bold">WELDER</th>
-                    <th className="text-left px-3 py-3 font-bold">JOB #</th>
-                    <th className="text-left px-3 py-3 font-bold">SIZE</th>
-                    <th className="text-left px-3 py-3 font-bold">MACHINE</th>
-                    <th className="text-left px-3 py-3 font-bold">ISO #</th>
-                    <th className="text-left px-3 py-3 font-bold">WELD #</th>
-                    <th className="text-left px-3 py-3 font-bold">B/D</th>
-                    <th className="text-left px-3 py-3 font-bold">PROG</th>
-                    <th className="text-left px-3 py-3 font-bold">HEAD</th>
-                    <th className="text-left px-3 py-3 font-bold">SYSTEM</th>
-                    <th className="text-left px-3 py-3 font-bold">COMMENTS</th>
-                    <th className="text-center px-3 py-3 font-bold">QC</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {allRows.map(({ log, welder, entry, insp }) => (
-                    <tr key={`${log.id}-${entry.id}`} className="hover:bg-slate-50">
-                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{new Date(log.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "2-digit" })}</td>
-                      <td className="px-3 py-2 font-bold text-slate-800 whitespace-nowrap">{welder?.name || "—"}</td>
-                      <td className="px-3 py-2 font-mono text-slate-700">{log.jobNumber}</td>
-                      <td className="px-3 py-2 font-mono text-slate-700">{entry.size}</td>
-                      <td className="px-3 py-2 font-mono text-slate-700">{entry.machine}</td>
-                      <td className="px-3 py-2 font-mono text-blue-700">{entry.iso}</td>
-                      <td className="px-3 py-2 font-mono font-bold text-slate-800">{entry.weldNumber}</td>
-                      <td className="px-3 py-2 font-mono text-slate-700">{entry.bottle}</td>
-                      <td className="px-3 py-2 font-mono text-slate-700">{entry.program}</td>
-                      <td className="px-3 py-2 font-mono text-slate-700">{entry.head}</td>
-                      <td className="px-3 py-2 font-mono text-slate-700">{entry.system}</td>
-                      <td className="px-3 py-2 text-slate-600 max-w-[150px] truncate" title={entry.comments}>{entry.comments || "—"}</td>
-                      <td className="px-3 py-2 text-center">
-                        {insp ? (insp.status === "accepted" ? <span className="text-emerald-600 font-bold">✓ {insp.qcInitial}</span> : <span className="text-red-600 font-bold">✗ {insp.qcInitial}</span>) : <span className="text-amber-600 text-xs font-semibold">PENDING</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+        {logs.length === 0 ? <EmptyState icon={ClipboardList} text="No welds registered yet." /> : (
+          <div className="space-y-2">
+            {grouped.map(({ welder, logs: welderLogs, weldsCount }) => {
+              const isExpanded = expandedWelderLogs[welder.id];
+              return (
+                <div key={welder.id} className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => setExpandedWelderLogs((prev) => ({ ...prev, [welder.id]: !prev[welder.id] }))}
+                    className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+                        <HardHat size={18} />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-slate-900">{welder.name}</div>
+                        <div className="text-xs text-slate-500 font-mono">#{welder.welderId}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                        {welderLogs.length} {welderLogs.length === 1 ? "log" : "logs"} · {weldsCount} welds
+                      </span>
+                      {isExpanded ? <ChevronDown size={18} className="text-slate-400" /> : <ChevronRight size={18} className="text-slate-400" />}
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t border-slate-100 bg-slate-50/30 divide-y divide-slate-100">
+                      {welderLogs.map((log) => {
+                        const logPending = log.entries.filter((e) => !inspections.find((i) => i.weldRef === `${log.id}-${e.id}`)).length;
+                        const logAccepted = log.entries.filter((e) => inspections.find((i) => i.weldRef === `${log.id}-${e.id}` && i.status === "accepted")).length;
+                        const logRejected = log.entries.filter((e) => inspections.find((i) => i.weldRef === `${log.id}-${e.id}` && i.status === "rejected")).length;
+                        return (
+                          <div key={log.id} className="bg-white">
+                            <div className="px-5 py-3 bg-gradient-to-r from-blue-50 to-slate-50 border-b border-slate-100 flex justify-between items-center flex-wrap gap-2">
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <Calendar size={14} className="text-blue-700" />
+                                <span className="text-blue-700 font-bold text-sm">
+                                  {new Date(log.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric" }).toUpperCase()}
+                                </span>
+                                {log.jobNumber && <span className="text-xs text-slate-600">JOB #{log.jobNumber}</span>}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="text-slate-500">{log.entries.length} welds:</span>
+                                {logAccepted > 0 && <span className="text-emerald-600 font-bold">✓{logAccepted}</span>}
+                                {logRejected > 0 && <span className="text-red-600 font-bold">✗{logRejected}</span>}
+                                {logPending > 0 && <span className="text-amber-600 font-bold">{logPending} pending</span>}
+                                <button onClick={() => { setEditingLog(log); setShowLogModal(true); }} className="text-slate-500 hover:text-blue-700 p-1 hover:bg-blue-50 rounded ml-2"><Edit2 size={12} /></button>
+                                <button onClick={() => onDeleteLog(log.id)} className="text-slate-500 hover:text-red-600 p-1 hover:bg-red-50 rounded"><Trash2 size={12} /></button>
+                              </div>
+                            </div>
+                            {log.entries.length === 0 ? (
+                              <div className="px-5 py-4 text-sm text-slate-400 italic">Sin welds en este log.</div>
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                  <thead className="bg-slate-50 text-slate-600 tracking-widest">
+                                    <tr>
+                                      <th className="text-left px-3 py-2 font-bold whitespace-nowrap">SIZE</th>
+                                      <th className="text-left px-3 py-2 font-bold whitespace-nowrap">MACHINE</th>
+                                      <th className="text-left px-3 py-2 font-bold whitespace-nowrap">ISO #</th>
+                                      <th className="text-left px-3 py-2 font-bold whitespace-nowrap">WELD #</th>
+                                      <th className="text-left px-3 py-2 font-bold whitespace-nowrap">B/D</th>
+                                      <th className="text-left px-3 py-2 font-bold whitespace-nowrap">PROG</th>
+                                      <th className="text-left px-3 py-2 font-bold whitespace-nowrap">HEAD</th>
+                                      <th className="text-left px-3 py-2 font-bold whitespace-nowrap">SYSTEM</th>
+                                      <th className="text-left px-3 py-2 font-bold whitespace-nowrap">QC</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {log.entries.map((e) => {
+                                      const insp = inspections.find((i) => i.weldRef === `${log.id}-${e.id}`);
+                                      return (
+                                        <tr key={e.id} className={`hover:bg-slate-50 ${insp?.status === "rejected" ? "bg-red-50/50" : insp?.status === "accepted" ? "bg-emerald-50/30" : ""}`}>
+                                          <td className="px-3 py-2 font-mono">{e.size}</td>
+                                          <td className="px-3 py-2 font-mono text-slate-600">{e.machine}</td>
+                                          <td className="px-3 py-2 font-mono text-blue-700">{e.iso}</td>
+                                          <td className="px-3 py-2 font-mono font-bold">{e.weldNumber}</td>
+                                          <td className="px-3 py-2 font-mono">{e.bottle}</td>
+                                          <td className="px-3 py-2 font-mono">{e.program}</td>
+                                          <td className="px-3 py-2 font-mono text-slate-600">{e.head}</td>
+                                          <td className="px-3 py-2 font-mono">{e.system}</td>
+                                          <td className="px-3 py-2 font-mono">
+                                            {insp ? (insp.status === "accepted" ? <span className="text-emerald-600 font-bold">✓ {insp.qcInitial}</span> : <span className="text-red-600 font-bold">✗ {insp.qcInitial}</span>) : <span className="text-amber-600 font-semibold">PENDING</span>}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
 
-        {showLogModal && <LogModal welders={welders} editing={editingLog} onClose={() => { setShowLogModal(false); setEditingLog(null); }} onSave={(l) => { onSaveLog(editingLog ? { ...editingLog, ...l } : { ...l, welderId: l.welderId || welders[0]?.id }); setShowLogModal(false); setEditingLog(null); }} forcedWelderId={null} />}
+        {showLogModal && <LogModal welders={welders} editing={editingLog} onClose={() => { setShowLogModal(false); setEditingLog(null); }} onSave={(l) => { onSaveLog(editingLog ? { ...editingLog, ...l } : { ...l, welderId: l.welderId || welders[0]?.id }); setShowLogModal(false); setEditingLog(null); }} role={role} currentUser={currentUser} />}
       </div>
     );
   }
@@ -1344,57 +1403,196 @@ function ToolModal({ onClose, onSave, welders }) {
 
 function ToolsView({ role, currentUser, tools, welders, onAdd, onDelete, onReassign }) {
   const [showModal, setShowModal] = useState(false);
+  const [expandedWelders, setExpandedWelders] = useState({});
   const visibleTools = role === "welder" ? tools.filter((t) => t.welderId === currentUser.id) : tools;
   const canManage = role === "admin";
+
+  const toggleWelder = (welderId) => {
+    setExpandedWelders((prev) => ({ ...prev, [welderId]: !prev[welderId] }));
+  };
+
+  // Group tools by welder
+  const groupedTools = welders.map((w) => ({
+    welder: w,
+    tools: visibleTools.filter((t) => t.welderId === w.id),
+  })).filter((g) => g.tools.length > 0 || canManage);
+
+  const unassignedTools = visibleTools.filter((t) => !t.welderId);
+
+  // For welder role, just show their tools directly (no grouping needed)
+  if (role === "welder") {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900">MY TOOLS</h2>
+          <p className="text-slate-500 text-xs tracking-wider font-semibold">{visibleTools.length} REGISTRADAS</p>
+        </div>
+        {visibleTools.length === 0 ? <EmptyState icon={Wrench} text="No tienes herramientas assigned." /> : (
+          <Card noPadding>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-xs tracking-widest text-slate-600">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-bold">HERRAMIENTA</th>
+                    <th className="text-left px-4 py-3 font-bold">SERIAL</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {visibleTools.map((t) => (
+                    <tr key={t.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 font-bold text-slate-900">{t.name}</td>
+                      <td className="px-4 py-3 font-mono text-blue-700 text-xs">{t.serial}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-slate-900">{role === "welder" ? "MY TOOLS" : "HERRAMIENTAS"}</h2>
-          <p className="text-slate-500 text-xs tracking-wider font-semibold">{visibleTools.length} REGISTRADAS</p>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900">HERRAMIENTAS</h2>
+          <p className="text-slate-500 text-xs tracking-wider font-semibold">{visibleTools.length} REGISTRADAS · {welders.length} SOLDADORES</p>
         </div>
         {canManage && <button onClick={() => setShowModal(true)} className={btnPrimary}><Plus size={14} /> NUEVA</button>}
       </div>
-      {visibleTools.length === 0 ? <EmptyState icon={Wrench} text={role === "welder" ? "No tienes herramientas assigned." : "No hay herramientas registradas."} /> : (
-        <Card noPadding>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-xs tracking-widest text-slate-600">
-                <tr>
-                  <th className="text-left px-4 py-3 font-bold">HERRAMIENTA</th>
-                  <th className="text-left px-4 py-3 font-bold">SERIAL</th>
-                  <th className="text-left px-4 py-3 font-bold">ASIGNADA A</th>
-                  {canManage && <th className="px-4 py-3"></th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {visibleTools.map((t) => {
-                  const w = welders.find((w) => w.id === t.welderId);
-                  return (
-                    <tr key={t.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-bold text-slate-900">{t.name}</td>
-                      <td className="px-4 py-3 font-mono text-blue-700 text-xs">{t.serial}</td>
-                      <td className="px-4 py-3">
-                        {canManage ? (
-                          <select value={t.welderId || ""} onChange={(e) => onReassign(t.id, e.target.value || null)} className={selectCls + " max-w-[180px]"}>
-                            <option value="">— Sin asignar —</option>
-                            {welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
-                          </select>
-                        ) : <span className="text-xs">{w ? `${w.name} (#${w.welderId})` : "—"}</span>}
-                      </td>
-                      {canManage && (
-                        <td className="px-4 py-3 text-right">
-                          <button onClick={() => onDelete(t.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"><Trash2 size={14} /></button>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+
+      {visibleTools.length === 0 ? <EmptyState icon={Wrench} text="No hay herramientas registradas." /> : (
+        <div className="space-y-2">
+          {groupedTools.map(({ welder, tools: welderTools }) => {
+            const isExpanded = expandedWelders[welder.id];
+            return (
+              <div key={welder.id} className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                <button
+                  onClick={() => toggleWelder(welder.id)}
+                  className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+                      <HardHat size={18} />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-bold text-slate-900">{welder.name}</div>
+                      <div className="text-xs text-slate-500 font-mono">#{welder.welderId}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                      {welderTools.length} {welderTools.length === 1 ? "herramienta" : "herramientas"}
+                    </span>
+                    {isExpanded ? <ChevronDown size={18} className="text-slate-400" /> : <ChevronRight size={18} className="text-slate-400" />}
+                  </div>
+                </button>
+
+                {isExpanded && (
+                  <div className="border-t border-slate-100">
+                    {welderTools.length === 0 ? (
+                      <div className="px-5 py-4 text-sm text-slate-400 italic">Sin herramientas asignadas a este soldador.</div>
+                    ) : (
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-50 text-xs tracking-widest text-slate-600">
+                          <tr>
+                            <th className="text-left px-5 py-2 font-bold">HERRAMIENTA</th>
+                            <th className="text-left px-5 py-2 font-bold">SERIAL</th>
+                            {canManage && <th className="text-left px-5 py-2 font-bold">REASIGNAR</th>}
+                            {canManage && <th className="px-5 py-2"></th>}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {welderTools.map((t) => (
+                            <tr key={t.id} className="hover:bg-slate-50">
+                              <td className="px-5 py-3 font-bold text-slate-900">{t.name}</td>
+                              <td className="px-5 py-3 font-mono text-blue-700 text-xs">{t.serial}</td>
+                              {canManage && (
+                                <td className="px-5 py-3">
+                                  <select value={t.welderId || ""} onChange={(e) => onReassign(t.id, e.target.value || null)} className={selectCls + " max-w-[180px]"}>
+                                    <option value="">— Sin asignar —</option>
+                                    {welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
+                                  </select>
+                                </td>
+                              )}
+                              {canManage && (
+                                <td className="px-5 py-3 text-right">
+                                  <button onClick={() => onDelete(t.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"><Trash2 size={14} /></button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {unassignedTools.length > 0 && (
+            <div className="bg-white border border-amber-200 rounded-lg shadow-sm overflow-hidden">
+              <button
+                onClick={() => toggleWelder("__unassigned")}
+                className="w-full px-5 py-4 flex items-center justify-between hover:bg-amber-50/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0">
+                    <AlertCircle size={18} />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold text-amber-900">SIN ASIGNAR</div>
+                    <div className="text-xs text-amber-600">Herramientas sin soldador</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="bg-amber-100 border border-amber-300 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">
+                    {unassignedTools.length} {unassignedTools.length === 1 ? "herramienta" : "herramientas"}
+                  </span>
+                  {expandedWelders["__unassigned"] ? <ChevronDown size={18} className="text-amber-600" /> : <ChevronRight size={18} className="text-amber-600" />}
+                </div>
+              </button>
+              {expandedWelders["__unassigned"] && (
+                <div className="border-t border-amber-100">
+                  <table className="w-full text-sm">
+                    <thead className="bg-amber-50/50 text-xs tracking-widest text-amber-800">
+                      <tr>
+                        <th className="text-left px-5 py-2 font-bold">HERRAMIENTA</th>
+                        <th className="text-left px-5 py-2 font-bold">SERIAL</th>
+                        {canManage && <th className="text-left px-5 py-2 font-bold">ASIGNAR A</th>}
+                        {canManage && <th className="px-5 py-2"></th>}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {unassignedTools.map((t) => (
+                        <tr key={t.id} className="hover:bg-slate-50">
+                          <td className="px-5 py-3 font-bold text-slate-900">{t.name}</td>
+                          <td className="px-5 py-3 font-mono text-blue-700 text-xs">{t.serial}</td>
+                          {canManage && (
+                            <td className="px-5 py-3">
+                              <select value={t.welderId || ""} onChange={(e) => onReassign(t.id, e.target.value || null)} className={selectCls + " max-w-[180px]"}>
+                                <option value="">— Sin asignar —</option>
+                                {welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
+                              </select>
+                            </td>
+                          )}
+                          {canManage && (
+                            <td className="px-5 py-3 text-right">
+                              <button onClick={() => onDelete(t.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"><Trash2 size={14} /></button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
       {showModal && <ToolModal onClose={() => setShowModal(false)} onSave={onAdd} welders={welders} />}
     </div>
