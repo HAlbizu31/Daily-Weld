@@ -19,24 +19,34 @@ const btnPrimaryFull = "w-full bg-blue-700 hover:bg-blue-800 text-white font-bol
 
 function Logo({ size = "md" }) {
   const sizes = {
-    sm: { box: "w-8 h-8", text: "text-base", tag: "text-[8px]" },
-    md: { box: "w-10 h-10", text: "text-lg", tag: "text-[9px]" },
-    lg: { box: "w-16 h-16", text: "text-2xl", tag: "text-xs" },
+    sm: { icon: 28, text: "text-lg", tag: "text-[7px]" },
+    md: { icon: 38, text: "text-2xl", tag: "text-[8px]" },
+    lg: { icon: 56, text: "text-4xl", tag: "text-[10px]" },
   };
   const s = sizes[size];
   return (
     <div className="flex items-center gap-2.5">
-      <div className={`${s.box} bg-gradient-to-br from-blue-700 to-blue-900 flex items-center justify-center shadow-md rounded flex-shrink-0`}>
-        <svg viewBox="0 0 24 24" className="w-3/5 h-3/5" fill="none">
-          <path d="M4 18 L4 6 M4 6 L20 6 L20 12 L4 12 M4 12 L20 18" stroke="white" strokeWidth="2.5" strokeLinecap="square" />
-        </svg>
-      </div>
+      {/* Icono: tubo sanitario con weld point + check verde */}
+      <svg width={s.icon} height={s.icon} viewBox="0 0 100 100" className="flex-shrink-0">
+        <defs>
+          <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#1e40af" />
+            <stop offset="100%" stopColor="#1e3a8a" />
+          </linearGradient>
+        </defs>
+        {/* Tubería horizontal */}
+        <rect x="5" y="42" width="90" height="20" fill="url(#logoGrad)" rx="3" />
+        {/* Junta de soldadura (weld point) - círculo blanco con borde azul */}
+        <circle cx="50" cy="52" r="18" fill="white" stroke="url(#logoGrad)" strokeWidth="4" />
+        {/* Check verde de calidad */}
+        <path d="M 42 52 L 48 58 L 60 46" stroke="#10b981" strokeWidth="4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
       <div className="leading-tight">
         <div className={`${s.text} font-black text-blue-900 tracking-tight`}>
-          In<span className="text-blue-600">Serv</span>
+          SWCS
         </div>
         {size !== "sm" && (
-          <div className={`${s.tag} text-slate-500 tracking-[0.15em] font-semibold uppercase`}>Welding Control</div>
+          <div className={`${s.tag} text-slate-500 tracking-[0.2em] font-semibold uppercase`}>Sanitary Weld Control System</div>
         )}
       </div>
     </div>
