@@ -1365,6 +1365,184 @@ function EntryModal({ onClose, onSave, isos, editing }) {
   );
 }
 
+function generateDailyLogPDF(log, welder) {
+  const dateObj = new Date(log.date + "T00:00:00");
+  const dateStr = dateObj.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const dateShort = dateObj.toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "2-digit" });
+
+  // Pad rows to at least 18 to match the look of the original
+  const minRows = 18;
+  const entries = [...log.entries];
+  while (entries.length < minRows) entries.push(null);
+
+  const rowsHTML = entries.map((e, i) => {
+    if (!e) {
+      return `<tr class="${i % 2 === 0 ? 'even' : ''}"><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
+    }
+    return `
+      <tr class="${i % 2 === 0 ? 'even' : ''}">
+        <td>${e.size || ''}</td>
+        <td>${e.machine || ''}</td>
+        <td class="iso-col">${e.iso || ''}</td>
+        <td class="weld-col">${e.weldNumber || ''}</td>
+        <td>${e.bottle || ''}</td>
+        <td>${e.program || ''}</td>
+        <td>${e.head || ''}</td>
+        <td>${e.system || ''}</td>
+        <td>${e.comments || ''}</td>
+        <td></td>
+      </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Daily Weld Log — ${welder?.name || ''} — ${dateShort}</title>
+<style>
+  @page { size: letter landscape; margin: 0.4in; }
+  * { box-sizing: border-box; }
+  body { font-family: Helvetica, Arial, sans-serif; color: #0f172a; margin: 0; padding: 0; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .logo-block { display: flex; align-items: center; gap: 10px; }
+  .logo-svg { width: 50px; height: 50px; flex-shrink: 0; }
+  .logo-text { line-height: 1.1; }
+  .logo-name { font-size: 20pt; font-weight: 900; color: #1e3a8a; letter-spacing: -0.5pt; }
+  .logo-tag { font-size: 6pt; color: #64748b; letter-spacing: 2pt; font-weight: 600; text-transform: uppercase; }
+  .center-title { font-size: 18pt; font-weight: 900; color: #0f172a; }
+  .right-meta { font-size: 10pt; font-weight: 700; text-align: right; }
+  .info-table { width: 100%; margin-bottom: 16px; border-collapse: collapse; }
+  .info-table td { padding: 4px 0; font-size: 10pt; vertical-align: middle; }
+  .info-label { font-weight: 700; width: 90px; }
+  .info-value { border-bottom: 1px solid #0f172a; padding-bottom: 2px !important; padding-right: 20px !important; }
+  .info-spacer { width: 30px; }
+  table.welds { width: 100%; border-collapse: collapse; margin-bottom: 16px; border: 1px solid #1e3a8a; }
+  table.welds thead { background: #1e3a8a; color: white; }
+  table.welds th { padding: 8px 4px; font-size: 8pt; font-weight: 700; text-align: center; }
+  table.welds td { padding: 7px 4px; font-size: 9pt; text-align: center; border: 1px solid #cbd5e1; }
+  table.welds tr.even td { background: #eff6ff; }
+  table.welds td.iso-col { font-weight: 700; color: #1e40af; text-align: left; padding-left: 8px; }
+  table.welds td.weld-col { font-weight: 700; }
+  .footer { font-size: 9pt; color: #0f172a; }
+  .footer p { margin: 2px 0; }
+  @media print {
+    .no-print { display: none !important; }
+  }
+  .print-bar { position: fixed; top: 0; left: 0; right: 0; background: #1e3a8a; color: white; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+  .print-bar button { padding: 8px 16px; border-radius: 6px; border: none; font-weight: 700; cursor: pointer; font-size: 13px; letter-spacing: 1px; }
+  .print-btn { background: #10b981; color: white; }
+  .close-btn { background: #ef4444; color: white; margin-left: 8px; }
+  .content { padding-top: 70px; }
+  @media print { .content { padding-top: 0; } }
+</style>
+</head>
+<body>
+  <div class="print-bar no-print">
+    <div style="font-weight:700;letter-spacing:2px;">📄 DAILY WELD LOG — ${welder?.name || ''} — ${dateShort}</div>
+    <div>
+      <button class="print-btn" onclick="window.print()">🖨️ IMPRIMIR / GUARDAR PDF</button>
+      <button class="close-btn" onclick="window.close()">✕ CERRAR</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="header">
+      <div class="logo-block">
+        <svg class="logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#1e40af"/>
+              <stop offset="100%" stop-color="#1e3a8a"/>
+            </linearGradient>
+          </defs>
+          <rect x="5" y="42" width="90" height="20" fill="url(#g)" rx="3"/>
+          <circle cx="50" cy="52" r="18" fill="white" stroke="url(#g)" stroke-width="4"/>
+          <path d="M 42 52 L 48 58 L 60 46" stroke="#10b981" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="logo-text">
+          <div class="logo-name">SWCS</div>
+          <div class="logo-tag">Sanitary Weld Control System</div>
+        </div>
+      </div>
+      <div class="center-title">Daily Weld Log</div>
+      <div class="right-meta">Page: 1</div>
+    </div>
+
+    <table class="info-table">
+      <tr>
+        <td class="info-label">Date:</td>
+        <td class="info-value">${dateStr}</td>
+        <td class="info-spacer"></td>
+        <td class="info-label">Gas Cylinder:</td>
+        <td class="info-value">${log.gasCylinder || ''}</td>
+      </tr>
+      <tr>
+        <td class="info-label">Welder:</td>
+        <td class="info-value">${welder?.name || ''}</td>
+        <td class="info-spacer"></td>
+        <td class="info-label">Lot 1 #:</td>
+        <td class="info-value">${log.lot1 || ''}</td>
+      </tr>
+      <tr>
+        <td class="info-label">Welder ID:</td>
+        <td class="info-value">#${welder?.welderId || ''}</td>
+        <td class="info-spacer"></td>
+        <td class="info-label">Lot 2 #:</td>
+        <td class="info-value">${log.lot2 || ''}</td>
+      </tr>
+      <tr>
+        <td class="info-label">Job #:</td>
+        <td class="info-value">${log.jobNumber || ''}</td>
+        <td class="info-spacer"></td>
+        <td class="info-label">Cylinder:</td>
+        <td class="info-value">${log.cylinder || ''}</td>
+      </tr>
+    </table>
+
+    <table class="welds">
+      <thead>
+        <tr>
+          <th style="width:5%">Size</th>
+          <th style="width:9%">Machine<br/>Number</th>
+          <th style="width:18%">ISO Number</th>
+          <th style="width:7%">Weld<br/>Number</th>
+          <th style="width:6%">Bottle/<br/>Dewar</th>
+          <th style="width:7%">Program</th>
+          <th style="width:9%">Head</th>
+          <th style="width:6%">System</th>
+          <th style="width:23%">Comments</th>
+          <th style="width:10%">QC<br/>Initial</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHTML}
+      </tbody>
+    </table>
+
+    <div class="footer">
+      <p>Revision: 1</p>
+      <p>Approved: ____</p>
+      <p>Date: ${dateShort}</p>
+    </div>
+  </div>
+
+  <script>
+    // Auto-trigger print dialog after 500ms so user can save as PDF
+    // window.addEventListener('load', () => setTimeout(() => window.print(), 500));
+  </script>
+</body>
+</html>`;
+
+  // Open in new window
+  const win = window.open('', '_blank', 'width=1100,height=800');
+  if (!win) {
+    alert("Permite ventanas emergentes (popups) en tu navegador para generar el PDF.");
+    return;
+  }
+  win.document.write(html);
+  win.document.close();
+}
+
 function LogsView({ role, currentUser, logs, welders, isos, inspections, onSaveLog, onDeleteLog, onAddEntry, onDeleteEntry, onUpdateEntry }) {
   const [showLogModal, setShowLogModal] = useState(false);
   const [editingLog, setEditingLog] = useState(null);
@@ -1446,7 +1624,15 @@ function LogsView({ role, currentUser, logs, welders, isos, inspections, onSaveL
                                 {logAccepted > 0 && <span className="text-emerald-600 font-bold">✓{logAccepted}</span>}
                                 {logRejected > 0 && <span className="text-red-600 font-bold">✗{logRejected}</span>}
                                 {logPending > 0 && <span className="text-amber-600 font-bold">{logPending} pending</span>}
-                                <button onClick={() => { setEditingLog(log); setShowLogModal(true); }} className="text-slate-500 hover:text-blue-700 p-1 hover:bg-blue-50 rounded ml-2"><Edit2 size={12} /></button>
+                                <button
+                                  onClick={() => generateDailyLogPDF(log, welder)}
+                                  disabled={log.entries.length === 0}
+                                  title="Exportar Daily Weld Log a PDF"
+                                  className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white text-[10px] font-bold tracking-widest px-2.5 py-1 rounded ml-2 flex items-center gap-1 transition-colors"
+                                >
+                                  <Download size={11} /> EXPORTAR PDF
+                                </button>
+                                <button onClick={() => { setEditingLog(log); setShowLogModal(true); }} className="text-slate-500 hover:text-blue-700 p-1 hover:bg-blue-50 rounded ml-1"><Edit2 size={12} /></button>
                                 <button onClick={() => onDeleteLog(log.id)} className="text-slate-500 hover:text-red-600 p-1 hover:bg-red-50 rounded"><Trash2 size={12} /></button>
                               </div>
                             </div>
