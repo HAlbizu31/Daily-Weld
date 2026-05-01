@@ -1877,15 +1877,57 @@ function InspectModal({ entry, welder, onClose, onSave }) {
 
 function InspectionsView({ role, logs, welders, inspections, onAdd, onDelete }) {
   const [showInspectModal, setShowInspectModal] = useState(null);
+  const [expandedWelders, setExpandedWelders] = useState({});
+  const [expandedDates, setExpandedDates] = useState({});
   const allEntries = logs.flatMap((l) => l.entries.map((e) => ({ ...e, logId: l.id, logDate: l.date, welderId: l.welderId, jobNumber: l.jobNumber, weldRef: `${l.id}-${e.id}` })));
   const inspectedRefs = new Set(inspections.map((i) => i.weldRef));
   const pending = allEntries.filter((e) => !inspectedRefs.has(e.weldRef));
+
+  // Group inspections by welder, then by date (uses the log's date, not the inspection date)
+  const groupedInspections = welders.map((w) => {
+    const welderInspections = inspections
+      .map((insp) => {
+        const entry = allEntries.find((e) => e.weldRef === insp.weldRef);
+        return entry && entry.welderId === w.id ? { ...insp, entry } : null;
+      })
+      .filter(Boolean);
+
+    // Group by logDate (date the welds were done, not when QC inspected)
+    const byDate = {};
+    welderInspections.forEach((insp) => {
+      const d = insp.entry.logDate;
+      if (!byDate[d]) byDate[d] = [];
+      byDate[d].push(insp);
+    });
+
+    // Sort dates desc
+    const dates = Object.keys(byDate).sort((a, b) => new Date(b) - new Date(a));
+    const datesArr = dates.map((d) => ({
+      date: d,
+      inspections: byDate[d].sort((a, b) => new Date(b.date) - new Date(a.date)),
+    }));
+
+    const totalCount = welderInspections.length;
+    const acceptedCount = welderInspections.filter((i) => i.status === "accepted").length;
+    const rejectedCount = welderInspections.filter((i) => i.status === "rejected").length;
+
+    return { welder: w, dates: datesArr, totalCount, acceptedCount, rejectedCount };
+  }).filter((g) => g.totalCount > 0);
+
+  // Also count inspections whose weld was deleted (entry not found) — show in "Otros" group
+  const orphanInspections = inspections.filter((insp) => {
+    const entry = allEntries.find((e) => e.weldRef === insp.weldRef);
+    return !entry;
+  });
+
+  const toggleWelder = (id) => setExpandedWelders((p) => ({ ...p, [id]: !p[id] }));
+  const toggleDate = (key) => setExpandedDates((p) => ({ ...p, [key]: !p[key] }));
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-2xl font-black tracking-tight text-slate-900">CONTROL DE CALIDAD</h2>
-        <p className="text-slate-500 text-xs tracking-wider font-semibold">{pending.length} PENDING · {inspections.filter((i) => i.status === "rejected").length} REJECTED</p>
+        <p className="text-slate-500 text-xs tracking-wider font-semibold">{pending.length} PENDING · {inspections.filter((i) => i.status === "rejected").length} REJECTED · {inspections.filter((i) => i.status === "accepted").length} ACCEPTED</p>
       </div>
       {role === "qc" && (
         <div className="bg-cyan-50 border border-cyan-200 px-4 py-3 text-xs text-cyan-800 flex items-start gap-2 rounded">
@@ -1893,6 +1935,8 @@ function InspectionsView({ role, logs, welders, inspections, onAdd, onDelete }) 
           <div>Como inspector QC, eres el único que puede aprobar o rechazar welds.</div>
         </div>
       )}
+
+      {/* PENDING SECTION */}
       <div className="space-y-3">
         <h3 className="text-sm font-bold tracking-widest text-blue-700">PENDING DE INSPECCIÓN ({pending.length})</h3>
         {pending.length === 0 ? (
@@ -1935,44 +1979,147 @@ function InspectionsView({ role, logs, welders, inspections, onAdd, onDelete }) 
           </Card>
         )}
       </div>
+
+      {/* INSPECTED SECTION — grouped by welder → date */}
       <div className="space-y-3">
         <h3 className="text-sm font-bold tracking-widest text-slate-700">INSPECCIONES REALIZADAS ({inspections.length})</h3>
         {inspections.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm">Sin inspections registradas.</div>
         ) : (
           <div className="space-y-2">
-            {[...inspections].sort((a, b) => new Date(b.date) - new Date(a.date)).map((insp) => {
-              const entry = allEntries.find((e) => e.weldRef === insp.weldRef);
-              const w = welders.find((w) => w.id === entry?.welderId);
+            {groupedInspections.map(({ welder: w, dates, totalCount, acceptedCount, rejectedCount }) => {
+              const isExpanded = expandedWelders[w.id];
               return (
-                <div key={insp.id} className={`bg-white border-l-4 border border-slate-200 p-3 rounded-r ${insp.status === "rejected" ? "border-l-red-500" : "border-l-emerald-500"}`}>
-                  <div className="flex justify-between items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className={`text-xs font-bold tracking-widest px-2 py-0.5 rounded ${insp.status === "accepted" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                          {insp.status === "accepted" ? "✓ ACCEPTED" : "✗ REJECTED"}
-                        </span>
-                        <span className="text-xs text-slate-500">{new Date(insp.date).toLocaleDateString("en-US")}</span>
-                        <span className="text-xs text-cyan-700 font-semibold">QC: {insp.qcInitial}</span>
+                <div key={w.id} className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => toggleWelder(w.id)}
+                    className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-cyan-100 text-cyan-700 flex items-center justify-center flex-shrink-0">
+                        <HardHat size={18} />
                       </div>
-                      {entry ? (
-                        <div className="text-xs">
-                          <span className="font-bold text-slate-900">{w?.name}</span> · <span className="font-mono text-blue-700">{entry.iso}</span> · Weld <span className="font-mono">{entry.weldNumber}</span>
-                        </div>
-                      ) : <div className="text-xs text-slate-400">Soldadura eliminada</div>}
-                      {insp.status === "rejected" && insp.reason && (
-                        <div className="mt-1 flex items-start gap-1.5 text-xs text-red-700">
-                          <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />
-                          <span>{insp.reason}</span>
-                        </div>
-                      )}
-                      {insp.comments && <div className="mt-1 text-xs text-slate-500 italic">"{insp.comments}"</div>}
+                      <div className="text-left">
+                        <div className="font-bold text-slate-900">{w.name}</div>
+                        <div className="text-xs text-slate-500 font-mono">#{w.welderId}</div>
+                      </div>
                     </div>
-                    {role === "qc" && <button onClick={() => onDelete(insp.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={12} /></button>}
-                  </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="bg-cyan-50 border border-cyan-200 text-cyan-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                        {totalCount} {totalCount === 1 ? "inspección" : "inspecciones"}
+                      </span>
+                      {acceptedCount > 0 && (
+                        <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold px-2 py-1 rounded-full">
+                          ✓ {acceptedCount}
+                        </span>
+                      )}
+                      {rejectedCount > 0 && (
+                        <span className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold px-2 py-1 rounded-full">
+                          ✗ {rejectedCount}
+                        </span>
+                      )}
+                      {isExpanded ? <ChevronDown size={18} className="text-slate-400" /> : <ChevronRight size={18} className="text-slate-400" />}
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t border-slate-100 bg-slate-50/30 divide-y divide-slate-100">
+                      {dates.map(({ date, inspections: dateInsps }) => {
+                        const dateKey = `${w.id}-${date}`;
+                        const isDateExpanded = expandedDates[dateKey];
+                        const dateAccepted = dateInsps.filter((i) => i.status === "accepted").length;
+                        const dateRejected = dateInsps.filter((i) => i.status === "rejected").length;
+                        return (
+                          <div key={date} className="bg-white">
+                            <button
+                              onClick={() => toggleDate(dateKey)}
+                              className="w-full px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                            >
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <Calendar size={14} className="text-blue-700" />
+                                <span className="text-blue-700 font-bold text-sm">
+                                  {new Date(date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric" }).toUpperCase()}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="text-slate-500">{dateInsps.length} {dateInsps.length === 1 ? "weld" : "welds"}:</span>
+                                {dateAccepted > 0 && <span className="text-emerald-600 font-bold">✓{dateAccepted}</span>}
+                                {dateRejected > 0 && <span className="text-red-600 font-bold">✗{dateRejected}</span>}
+                                {isDateExpanded ? <ChevronDown size={16} className="text-slate-400 ml-2" /> : <ChevronRight size={16} className="text-slate-400 ml-2" />}
+                              </div>
+                            </button>
+
+                            {isDateExpanded && (
+                              <div className="px-3 pb-3 space-y-2">
+                                {dateInsps.map((insp) => {
+                                  const entry = insp.entry;
+                                  return (
+                                    <div key={insp.id} className={`bg-white border-l-4 border border-slate-200 p-3 rounded-r ${insp.status === "rejected" ? "border-l-red-500" : "border-l-emerald-500"}`}>
+                                      <div className="flex justify-between items-start gap-3">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                                            <span className={`text-xs font-bold tracking-widest px-2 py-0.5 rounded ${insp.status === "accepted" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                                              {insp.status === "accepted" ? "✓ ACCEPTED" : "✗ REJECTED"}
+                                            </span>
+                                            <span className="text-xs text-slate-500">Inspeccionado: {new Date(insp.date).toLocaleDateString("en-US")}</span>
+                                            <span className="text-xs text-cyan-700 font-semibold">QC: {insp.qcInitial}</span>
+                                          </div>
+                                          <div className="text-xs">
+                                            <span className="font-mono text-blue-700">{entry.iso}</span> · Weld <span className="font-mono font-bold">{entry.weldNumber}</span> · <span className="font-mono">{entry.system}</span>
+                                          </div>
+                                          {insp.status === "rejected" && insp.reason && (
+                                            <div className="mt-1 flex items-start gap-1.5 text-xs text-red-700">
+                                              <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />
+                                              <span>{insp.reason}</span>
+                                            </div>
+                                          )}
+                                          {insp.comments && <div className="mt-1 text-xs text-slate-500 italic">"{insp.comments}"</div>}
+                                        </div>
+                                        {role === "qc" && <button onClick={() => onDelete(insp.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={12} /></button>}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
+
+            {/* Orphan inspections (welds that were deleted) */}
+            {orphanInspections.length > 0 && (
+              <div className="bg-white border border-amber-200 rounded-lg shadow-sm overflow-hidden">
+                <div className="px-5 py-3 bg-amber-50 border-b border-amber-200 flex items-center gap-2">
+                  <AlertCircle size={14} className="text-amber-600" />
+                  <span className="text-xs font-bold tracking-widest text-amber-800">INSPECCIONES SIN WELD ({orphanInspections.length})</span>
+                  <span className="text-[10px] text-amber-600 italic">— el weld original fue eliminado</span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {orphanInspections.map((insp) => (
+                    <div key={insp.id} className={`p-3 border-l-4 ${insp.status === "rejected" ? "border-l-red-500" : "border-l-emerald-500"}`}>
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className={`text-xs font-bold tracking-widest px-2 py-0.5 rounded ${insp.status === "accepted" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                              {insp.status === "accepted" ? "✓ ACCEPTED" : "✗ REJECTED"}
+                            </span>
+                            <span className="text-xs text-slate-500">{new Date(insp.date).toLocaleDateString("en-US")}</span>
+                            <span className="text-xs text-cyan-700 font-semibold">QC: {insp.qcInitial}</span>
+                          </div>
+                          <div className="text-xs text-slate-400">Soldadura eliminada</div>
+                        </div>
+                        {role === "qc" && <button onClick={() => onDelete(insp.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={12} /></button>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
