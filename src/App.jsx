@@ -9,7 +9,7 @@ const initialData = {
     { id: "u1", username: "admin", password: "admin", role: "admin", name: "Administrator" },
     { id: "u2", username: "qc", password: "qc", role: "qc", name: "QC Inspector" },
   ],
-  welders: [], isos: [], dailyLogs: [], inspections: [], tools: [], systems: [],
+  welders: [], isos: [], dailyLogs: [], inspections: [], tools: [], systems: [], coupons: [],
 };
 
 const inputCls = "w-full bg-white border border-slate-300 text-sm px-3 py-2 rounded focus:border-blue-600 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all";
@@ -457,6 +457,9 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
   const addSystem = (name) => setData((d) => ({ ...d, systems: [...(d.systems || []), { id: Date.now().toString(), name: name.trim().toUpperCase() }] }));
   const deleteSystem = (id) => { if (!confirm("Delete system? Los ISOs con este sistema quedarán sin clasificar.")) return; setData((d) => ({ ...d, systems: (d.systems || []).filter((s) => s.id !== id) })); };
   const updateIso = (isoId, fields) => setData((d) => ({ ...d, isos: d.isos.map((i) => i.id === isoId ? { ...i, ...fields } : i) }));
+  const addCoupon = (c) => setData((d) => ({ ...d, coupons: [...(d.coupons || []), { ...c, id: Date.now().toString(), createdAt: new Date().toISOString() }] }));
+  const updateCoupon = (id, fields) => setData((d) => ({ ...d, coupons: (d.coupons || []).map((c) => c.id === id ? { ...c, ...fields } : c) }));
+  const deleteCoupon = (id) => { if (!confirm("Delete coupon?")) return; setData((d) => ({ ...d, coupons: (d.coupons || []).filter((c) => c.id !== id) })); };
 
   const myWelderId = role === "welder" ? currentUser.id : null;
   const visibleLogs = role === "welder" ? data.dailyLogs.filter((l) => l.welderId === myWelderId) : data.dailyLogs;
@@ -485,10 +488,12 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
   // === QC Notifications: count pending welds (without inspection yet) ===
   const allEntriesGlobal = data.dailyLogs.flatMap((l) => l.entries.map((e) => ({ ref: getEntryRef(l.id, e.id) })));
   const pendingCount = allEntriesGlobal.filter((e) => !data.inspections.find((i) => i.weldRef === e.ref)).length;
+  const pendingCouponsCount = (data.coupons || []).filter((c) => c.status === "ready").length;
   const [prevPendingCount, setPrevPendingCount] = useState(pendingCount);
+  const [prevCouponsCount, setPrevCouponsCount] = useState(pendingCouponsCount);
 
   useEffect(() => {
-    if (role === "qc" && pendingCount > prevPendingCount) {
+    if (role === "qc" && (pendingCount > prevPendingCount || pendingCouponsCount > prevCouponsCount)) {
       // Play notification sound (beep)
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -504,7 +509,8 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
       } catch (e) {}
     }
     setPrevPendingCount(pendingCount);
-  }, [pendingCount, role]);
+    setPrevCouponsCount(pendingCouponsCount);
+  }, [pendingCount, pendingCouponsCount, role]);
 
   const tabs = role === "admin" ? [
     { id: "dashboard", icon: BarChart3, label: "DASHBOARD" },
@@ -512,6 +518,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
     { id: "isos", icon: FileText, label: "ISOS" },
     { id: "logs", icon: ClipboardList, label: "DAILY LOG" },
     { id: "inspections", icon: Eye, label: "QC" },
+    { id: "coupons", icon: Award, label: "COUPONS" },
     { id: "tools", icon: Wrench, label: "TOOLS" },
     { id: "charts", icon: TrendingUp, label: "CHARTS" },
     { id: "codes", icon: BookOpen, label: "CODES" },
@@ -519,10 +526,12 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
     { id: "dashboard", icon: BarChart3, label: "DASHBOARD" },
     { id: "logs", icon: ClipboardList, label: "DAILY LOG" },
     { id: "inspections", icon: CheckCircle2, label: "INSPECT" },
+    { id: "coupons", icon: Award, label: "COUPONS" },
     { id: "codes", icon: BookOpen, label: "CODES" },
   ] : [
     { id: "dashboard", icon: BarChart3, label: "MY DASHBOARD" },
     { id: "logs", icon: ClipboardList, label: "MY DAILY LOGS" },
+    { id: "coupons", icon: Award, label: "MY COUPONS" },
     { id: "tools", icon: Wrench, label: "MY TOOLS" },
     { id: "codes", icon: BookOpen, label: "CODES" },
   ];
@@ -574,6 +583,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
                 const Icon = t.icon;
                 const active = view === t.id;
                 const showBadge = role === "qc" && t.id === "inspections" && pendingCount > 0;
+                const showCouponBadge = role === "qc" && t.id === "coupons" && pendingCouponsCount > 0;
                 return (
                   <button
                     key={t.id}
@@ -585,6 +595,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
                     <Icon size={16} />
                     {t.label}
                     {showBadge && <span className="ml-auto bg-red-600 text-white text-xs font-black rounded-full min-w-[22px] h-[22px] px-1.5 flex items-center justify-center animate-pulse">{pendingCount}</span>}
+                    {showCouponBadge && <span className="ml-auto bg-amber-500 text-white text-xs font-black rounded-full min-w-[22px] h-[22px] px-1.5 flex items-center justify-center animate-pulse">{pendingCouponsCount}</span>}
                   </button>
                 );
               })}
@@ -598,6 +609,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
             const Icon = t.icon;
             const active = view === t.id;
             const showBadge = role === "qc" && t.id === "inspections" && pendingCount > 0;
+            const showCouponBadge = role === "qc" && t.id === "coupons" && pendingCouponsCount > 0;
             return (
               <button key={t.id} onClick={() => setView(t.id)}
                 className={`px-4 py-3 text-xs font-bold tracking-widest border-b-2 transition-all flex items-center gap-2 whitespace-nowrap relative ${
@@ -606,6 +618,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
                 <Icon size={14} />
                 {t.label}
                 {showBadge && <span className="bg-red-600 text-white text-[10px] font-black rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center animate-pulse">{pendingCount}</span>}
+                {showCouponBadge && <span className="bg-amber-500 text-white text-[10px] font-black rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center animate-pulse">{pendingCouponsCount}</span>}
               </button>
             );
           })}
@@ -618,6 +631,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
         {view === "isos" && role === "admin" && <IsosView isos={data.isos} welders={data.welders} systems={data.systems || []} onAdd={addIso} onDelete={deleteIso} onAssign={assignIso} onAddSystem={addSystem} onDeleteSystem={deleteSystem} onUpdateIso={updateIso} />}
         {view === "logs" && <LogsView role={role} currentUser={currentUser} logs={visibleLogs} welders={data.welders} isos={data.isos} inspections={data.inspections} onSaveLog={saveLog} onDeleteLog={deleteLog} onAddEntry={addEntry} onDeleteEntry={deleteEntry} onUpdateEntry={updateEntry} />}
         {view === "inspections" && (role === "admin" || role === "qc") && <InspectionsView role={role} logs={data.dailyLogs} welders={data.welders} inspections={data.inspections} onAdd={addInspection} onDelete={deleteInspection} />}
+        {view === "coupons" && <CouponsView role={role} currentUser={currentUser} welders={data.welders} coupons={data.coupons || []} dailyLogs={data.dailyLogs} onAdd={addCoupon} onUpdate={updateCoupon} onDelete={deleteCoupon} />}
         {view === "tools" && <ToolsView role={role} currentUser={currentUser} tools={data.tools} welders={data.welders} onAdd={addTool} onDelete={deleteTool} onReassign={reassignTool} />}
         {view === "charts" && role === "admin" && <ChartsView data={data} getEntryRef={getEntryRef} />}
         {view === "codes" && <CodesView />}
@@ -2596,6 +2610,484 @@ function ChartsView({ data, getEntryRef }) {
     </div>
   );
 }
+
+function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, onUpdate, onDelete }) {
+  const [showRejectModal, setShowRejectModal] = useState(null);
+  const [expandedWelders, setExpandedWelders] = useState({});
+  const [expandedDates, setExpandedDates] = useState({});
+
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  // === Detect changes that require a new coupon ===
+  // Get last weld of the welder (for today) to detect diameter/machine/head changes
+  const getLastWeldForWelder = (welderId) => {
+    const welderLogs = dailyLogs.filter((l) => l.welderId === welderId && l.date === todayStr);
+    if (welderLogs.length === 0) return null;
+    const allEntries = welderLogs.flatMap((l) => l.entries.map((e) => ({ ...e, logDate: l.date })));
+    if (allEntries.length === 0) return null;
+    return allEntries[allEntries.length - 1];
+  };
+
+  // Check if a welder needs a coupon TODAY (for the warnings/badges)
+  const couponNeededReason = (welderId) => {
+    const todayCoupons = coupons.filter((c) => c.welderId === welderId && c.date === todayStr);
+
+    // Has a coupon today? At least morning is covered
+    if (todayCoupons.length === 0) return "INICIO DE TURNO";
+
+    const lastWeld = getLastWeldForWelder(welderId);
+    if (!lastWeld) return null; // No welds yet today, but already has morning coupon
+
+    // Check if size/machine/head matches the most recent coupon
+    const lastCoupon = [...todayCoupons].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+
+    if (lastCoupon.size && lastWeld.size && lastCoupon.size !== lastWeld.size) {
+      return `CAMBIO DE DIÁMETRO (${lastCoupon.size}" → ${lastWeld.size}")`;
+    }
+    if (lastCoupon.machine && lastWeld.machine && lastCoupon.machine !== lastWeld.machine) {
+      return `CAMBIO DE MÁQUINA`;
+    }
+    if (lastCoupon.head && lastWeld.head && lastCoupon.head !== lastWeld.head) {
+      return `CAMBIO DE HEAD`;
+    }
+    return null;
+  };
+
+  // === Welder action: notify coupon ready ===
+  const notifyCouponReady = () => {
+    // Auto-detect reason
+    const todayCoupons = coupons.filter((c) => c.welderId === currentUser.id && c.date === todayStr);
+    let reason = "INICIO DE TURNO";
+    let size = "";
+    let machine = "";
+    let head = "";
+
+    const lastWeld = getLastWeldForWelder(currentUser.id);
+    if (todayCoupons.length > 0 && lastWeld) {
+      const lastCoupon = [...todayCoupons].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+      if (lastCoupon.size !== lastWeld.size) reason = `CAMBIO DE DIÁMETRO (${lastWeld.size}")`;
+      else if (lastCoupon.machine !== lastWeld.machine) reason = `CAMBIO DE MÁQUINA`;
+      else if (lastCoupon.head !== lastWeld.head) reason = `CAMBIO DE HEAD`;
+      else reason = "CUPÓN ADICIONAL";
+      size = lastWeld.size || "";
+      machine = lastWeld.machine || "";
+      head = lastWeld.head || "";
+    } else if (lastWeld) {
+      size = lastWeld.size || "";
+      machine = lastWeld.machine || "";
+      head = lastWeld.head || "";
+    }
+
+    onAdd({
+      welderId: currentUser.id,
+      welderName: currentUser.name,
+      date: todayStr,
+      time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
+      reason,
+      size,
+      machine,
+      head,
+      status: "ready",
+    });
+  };
+
+  // === QC action: approve coupon ===
+  const approveCoupon = (couponId) => {
+    onUpdate(couponId, {
+      status: "accepted",
+      qcInitial: currentUser.username?.toUpperCase() || currentUser.name?.substring(0, 2).toUpperCase() || "QC",
+      reviewedAt: new Date().toISOString(),
+      reviewedTime: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
+    });
+  };
+
+  // === QC action: reject coupon ===
+  const rejectCoupon = (couponId, reason) => {
+    onUpdate(couponId, {
+      status: "rejected",
+      qcInitial: currentUser.username?.toUpperCase() || currentUser.name?.substring(0, 2).toUpperCase() || "QC",
+      rejectReason: reason,
+      reviewedAt: new Date().toISOString(),
+      reviewedTime: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
+    });
+  };
+
+  // === Filter coupons based on role ===
+  const visibleCoupons = role === "welder"
+    ? coupons.filter((c) => c.welderId === currentUser.id)
+    : coupons;
+
+  const pendingCoupons = visibleCoupons.filter((c) => c.status === "ready");
+  const acceptedCount = visibleCoupons.filter((c) => c.status === "accepted").length;
+  const rejectedCount = visibleCoupons.filter((c) => c.status === "rejected").length;
+
+  // Today's coupon for current welder (used for welder UI)
+  const myTodayCoupons = role === "welder"
+    ? coupons.filter((c) => c.welderId === currentUser.id && c.date === todayStr)
+    : [];
+  const myReason = role === "welder" ? couponNeededReason(currentUser.id) : null;
+
+  // Welders who need a coupon today (for admin/QC dashboard)
+  const weldersNeedingCoupon = welders
+    .map((w) => ({ welder: w, reason: couponNeededReason(w.id) }))
+    .filter((x) => x.reason);
+
+  // === Group coupons by welder → date ===
+  const grouped = welders.map((w) => {
+    const wCoupons = visibleCoupons.filter((c) => c.welderId === w.id);
+    if (wCoupons.length === 0) return null;
+    const byDate = {};
+    wCoupons.forEach((c) => {
+      if (!byDate[c.date]) byDate[c.date] = [];
+      byDate[c.date].push(c);
+    });
+    const dates = Object.keys(byDate).sort((a, b) => new Date(b) - new Date(a)).map((d) => ({
+      date: d,
+      coupons: byDate[d].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+    }));
+    const total = wCoupons.length;
+    const accepted = wCoupons.filter((c) => c.status === "accepted").length;
+    const rejected = wCoupons.filter((c) => c.status === "rejected").length;
+    const ready = wCoupons.filter((c) => c.status === "ready").length;
+    return { welder: w, dates, total, accepted, rejected, ready };
+  }).filter(Boolean);
+
+  const toggleWelder = (id) => setExpandedWelders((p) => ({ ...p, [id]: !p[id] }));
+  const toggleDate = (key) => setExpandedDates((p) => ({ ...p, [key]: !p[key] }));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-start flex-wrap gap-2">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900">CUPONES DE CALIFICACIÓN</h2>
+          <p className="text-slate-500 text-xs tracking-wider font-semibold">
+            {visibleCoupons.length} TOTAL · {pendingCoupons.length} PENDIENTE QC · {acceptedCount} APROBADOS · {rejectedCount} RECHAZADOS
+          </p>
+        </div>
+      </div>
+
+      {/* === WELDER VIEW: BIG BUTTON TO NOTIFY COUPON READY === */}
+      {role === "welder" && (
+        <>
+          {myReason && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-5 flex items-start gap-3">
+              <AlertTriangle size={22} className="text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <div className="font-bold text-amber-900 text-sm mb-1">⚠️ CUPÓN REQUERIDO</div>
+                <div className="text-xs text-amber-800">Razón: <strong>{myReason}</strong></div>
+                <div className="text-xs text-amber-700 mt-1">Haz tu cupón físicamente y luego presiona el botón de abajo para notificar al QC.</div>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-gradient-to-br from-blue-700 to-blue-900 text-white rounded-xl p-6 shadow-lg">
+            <div className="flex items-center gap-3 mb-3">
+              <Award size={24} />
+              <div>
+                <div className="font-black text-lg">CUPÓN READY</div>
+                <div className="text-xs text-blue-100 tracking-wider">Notifica al QC cuando hayas terminado tu cupón</div>
+              </div>
+            </div>
+            <button
+              onClick={notifyCouponReady}
+              className="w-full bg-white text-blue-700 hover:bg-blue-50 font-black py-4 rounded-lg shadow-md transition-all hover:scale-[1.02] tracking-widest text-sm flex items-center justify-center gap-2"
+            >
+              🔔 NOTIFICAR CUPÓN READY
+            </button>
+          </div>
+
+          {/* Today's coupons for the welder */}
+          {myTodayCoupons.length > 0 && (
+            <div className="bg-white border border-slate-200 rounded-lg p-4">
+              <h3 className="text-xs font-bold tracking-widest text-slate-700 mb-3">MIS CUPONES DE HOY</h3>
+              <div className="space-y-2">
+                {myTodayCoupons.map((c) => (
+                  <div key={c.id} className={`p-3 rounded border-l-4 ${
+                    c.status === "ready" ? "bg-amber-50 border-l-amber-500" :
+                    c.status === "accepted" ? "bg-emerald-50 border-l-emerald-500" :
+                    "bg-red-50 border-l-red-500"
+                  }`}>
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-xs font-bold tracking-widest px-2 py-0.5 rounded ${
+                            c.status === "ready" ? "bg-amber-100 text-amber-700" :
+                            c.status === "accepted" ? "bg-emerald-100 text-emerald-700" :
+                            "bg-red-100 text-red-700"
+                          }`}>
+                            {c.status === "ready" ? "⏳ ESPERANDO QC" : c.status === "accepted" ? "✓ APROBADO" : "✗ RECHAZADO"}
+                          </span>
+                          <span className="text-xs text-slate-600 font-mono">{c.time}</span>
+                        </div>
+                        <div className="text-xs text-slate-600 mt-1"><strong>Razón:</strong> {c.reason}</div>
+                        {c.size && <div className="text-xs text-slate-500 mt-0.5">Diámetro: {c.size}" {c.machine && `· Máquina: ${c.machine}`}</div>}
+                        {c.qcInitial && <div className="text-xs text-cyan-700 mt-0.5">Revisado por QC: <strong>{c.qcInitial}</strong> a las {c.reviewedTime}</div>}
+                        {c.rejectReason && <div className="text-xs text-red-700 mt-1 italic">Razón rechazo: {c.rejectReason}</div>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* === QC VIEW: LIST OF PENDING COUPONS === */}
+      {role === "qc" && pendingCoupons.length > 0 && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle size={18} className="text-amber-600" />
+            <h3 className="text-sm font-black tracking-widest text-amber-900">
+              🔔 {pendingCoupons.length} CUPONES ESPERANDO INSPECCIÓN
+            </h3>
+          </div>
+          <div className="space-y-2">
+            {pendingCoupons
+              .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+              .map((c) => {
+                const w = welders.find((x) => x.id === c.welderId);
+                return (
+                  <div key={c.id} className="bg-white border border-amber-200 rounded p-3">
+                    <div className="flex justify-between items-start gap-3 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <HardHat size={14} className="text-blue-700" />
+                          <span className="font-bold text-slate-900 text-sm">{w?.name || c.welderName}</span>
+                          <span className="text-xs text-slate-500 font-mono">#{w?.welderId}</span>
+                          <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded font-mono">{c.time}</span>
+                        </div>
+                        <div className="text-xs text-slate-700"><strong>Razón:</strong> {c.reason}</div>
+                        {(c.size || c.machine || c.head) && (
+                          <div className="text-xs text-slate-500 mt-0.5">
+                            {c.size && <span>Diámetro: {c.size}"</span>}
+                            {c.machine && <span> · Máquina: {c.machine}</span>}
+                            {c.head && <span> · Head: {c.head}</span>}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => approveCoupon(c.id)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 text-xs font-bold tracking-widest rounded transition-colors flex items-center gap-1"
+                        >
+                          <CheckCircle2 size={12} /> APROBAR
+                        </button>
+                        <button
+                          onClick={() => setShowRejectModal(c)}
+                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 text-xs font-bold tracking-widest rounded transition-colors flex items-center gap-1"
+                        >
+                          <XCircle size={12} /> RECHAZAR
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* === ADMIN VIEW: WELDERS NEEDING COUPON TODAY === */}
+      {role === "admin" && weldersNeedingCoupon.length > 0 && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle size={18} className="text-amber-600" />
+            <h3 className="text-sm font-black tracking-widest text-amber-900">
+              ⚠️ {weldersNeedingCoupon.length} SOLDADORES NECESITAN CUPÓN
+            </h3>
+          </div>
+          <div className="space-y-1">
+            {weldersNeedingCoupon.map(({ welder: w, reason }) => (
+              <div key={w.id} className="bg-white border border-amber-200 rounded p-2 flex items-center gap-2 flex-wrap">
+                <HardHat size={14} className="text-blue-700" />
+                <span className="font-bold text-slate-900 text-sm">{w.name}</span>
+                <span className="text-xs text-slate-500 font-mono">#{w.welderId}</span>
+                <span className="ml-auto text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">{reason}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* === HISTORY: GROUPED BY WELDER → DATE === */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-bold tracking-widest text-slate-700">HISTORIAL DE CUPONES</h3>
+        {grouped.length === 0 ? (
+          <div className="bg-white border border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm">
+            {role === "welder" ? "No has hecho ningún cupón todavía." : "Sin cupones registrados todavía."}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {grouped.map(({ welder: w, dates, total, accepted, rejected, ready }) => {
+              const isExpanded = expandedWelders[w.id];
+              return (
+                <div key={w.id} className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => toggleWelder(w.id)}
+                    className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+                        <HardHat size={18} />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-slate-900">{w.name}</div>
+                        <div className="text-xs text-slate-500 font-mono">#{w.welderId}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                        {total} {total === 1 ? "cupón" : "cupones"}
+                      </span>
+                      {ready > 0 && (
+                        <span className="bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold px-2 py-1 rounded-full">
+                          ⏳ {ready}
+                        </span>
+                      )}
+                      {accepted > 0 && (
+                        <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold px-2 py-1 rounded-full">
+                          ✓ {accepted}
+                        </span>
+                      )}
+                      {rejected > 0 && (
+                        <span className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold px-2 py-1 rounded-full">
+                          ✗ {rejected}
+                        </span>
+                      )}
+                      {isExpanded ? <ChevronDown size={18} className="text-slate-400" /> : <ChevronRight size={18} className="text-slate-400" />}
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t border-slate-100 bg-slate-50/30 divide-y divide-slate-100">
+                      {dates.map(({ date, coupons: dCoupons }) => {
+                        const dateKey = `${w.id}-${date}`;
+                        const isDateExpanded = expandedDates[dateKey];
+                        const dAccepted = dCoupons.filter((c) => c.status === "accepted").length;
+                        const dRejected = dCoupons.filter((c) => c.status === "rejected").length;
+                        const dReady = dCoupons.filter((c) => c.status === "ready").length;
+                        return (
+                          <div key={date} className="bg-white">
+                            <button
+                              onClick={() => toggleDate(dateKey)}
+                              className="w-full px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                            >
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <Calendar size={14} className="text-blue-700" />
+                                <span className="text-blue-700 font-bold text-sm">
+                                  {new Date(date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric" }).toUpperCase()}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="text-slate-500">{dCoupons.length} {dCoupons.length === 1 ? "cupón" : "cupones"}:</span>
+                                {dReady > 0 && <span className="text-amber-600 font-bold">⏳{dReady}</span>}
+                                {dAccepted > 0 && <span className="text-emerald-600 font-bold">✓{dAccepted}</span>}
+                                {dRejected > 0 && <span className="text-red-600 font-bold">✗{dRejected}</span>}
+                                {isDateExpanded ? <ChevronDown size={16} className="text-slate-400 ml-2" /> : <ChevronRight size={16} className="text-slate-400 ml-2" />}
+                              </div>
+                            </button>
+                            {isDateExpanded && (
+                              <div className="px-3 pb-3 space-y-2">
+                                {dCoupons.map((c) => (
+                                  <div key={c.id} className={`bg-white border-l-4 border border-slate-200 p-3 rounded-r ${
+                                    c.status === "ready" ? "border-l-amber-500" :
+                                    c.status === "accepted" ? "border-l-emerald-500" :
+                                    "border-l-red-500"
+                                  }`}>
+                                    <div className="flex justify-between items-start gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                                          <span className={`text-xs font-bold tracking-widest px-2 py-0.5 rounded ${
+                                            c.status === "ready" ? "bg-amber-100 text-amber-700" :
+                                            c.status === "accepted" ? "bg-emerald-100 text-emerald-700" :
+                                            "bg-red-100 text-red-700"
+                                          }`}>
+                                            {c.status === "ready" ? "⏳ ESPERANDO QC" : c.status === "accepted" ? "✓ APROBADO" : "✗ RECHAZADO"}
+                                          </span>
+                                          <span className="text-xs text-slate-500 font-mono">{c.time}</span>
+                                          {c.qcInitial && <span className="text-xs text-cyan-700 font-semibold">QC: {c.qcInitial}</span>}
+                                        </div>
+                                        <div className="text-xs text-slate-700"><strong>Razón:</strong> {c.reason}</div>
+                                        {(c.size || c.machine || c.head) && (
+                                          <div className="text-xs text-slate-500 mt-0.5">
+                                            {c.size && <span>Ø {c.size}"</span>}
+                                            {c.machine && <span> · M: {c.machine}</span>}
+                                            {c.head && <span> · H: {c.head}</span>}
+                                          </div>
+                                        )}
+                                        {c.rejectReason && (
+                                          <div className="mt-1 flex items-start gap-1.5 text-xs text-red-700">
+                                            <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />
+                                            <span>{c.rejectReason}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      {(role === "admin" || role === "qc") && (
+                                        <button onClick={() => onDelete(c.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={12} /></button>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {showRejectModal && (
+        <CouponRejectModal
+          coupon={showRejectModal}
+          welder={welders.find((w) => w.id === showRejectModal.welderId)}
+          onClose={() => setShowRejectModal(null)}
+          onConfirm={(reason) => { rejectCoupon(showRejectModal.id, reason); setShowRejectModal(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CouponRejectModal({ coupon, welder, onClose, onConfirm }) {
+  const [reason, setReason] = useState("");
+  return (
+    <ModalShell title="RECHAZAR CUPÓN" onClose={onClose}>
+      <div className="bg-red-50 border border-red-200 p-3 rounded text-xs">
+        <div className="flex items-center gap-2 mb-1">
+          <HardHat size={14} className="text-blue-700" />
+          <strong className="text-slate-900">{welder?.name}</strong>
+          <span className="text-slate-500 font-mono">#{welder?.welderId}</span>
+        </div>
+        <div className="text-slate-700">Razón cupón: {coupon.reason}</div>
+        <div className="text-slate-500">Hora: {coupon.time}</div>
+      </div>
+      <Field label="RAZÓN DEL RECHAZO">
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+          className={inputCls}
+          placeholder="Ej: falta penetración, color azulado, oxidación..."
+          autoFocus
+        />
+      </Field>
+      <button
+        onClick={() => { if (reason.trim()) onConfirm(reason.trim()); else alert("Escribe una razón."); }}
+        className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 text-xs tracking-widest mt-2 rounded transition-colors shadow-sm"
+      >
+        CONFIRMAR RECHAZO
+      </button>
+    </ModalShell>
+  );
+}
+
 
 function IsoViewerModal({ iso, onClose, onUpdateIso }) {
   const [tool, setTool] = useState("pan");
