@@ -19,9 +19,9 @@ const btnPrimaryFull = "w-full bg-blue-700 hover:bg-blue-800 text-white font-bol
 
 function Logo({ size = "md" }) {
   const sizes = {
-    sm: { icon: 36, text: "text-xl", tag: "text-[8px]" },
-    md: { icon: 54, text: "text-3xl", tag: "text-[9px]" },
-    lg: { icon: 80, text: "text-5xl", tag: "text-xs" },
+    sm: { icon: 40, text: "text-2xl", tag: "text-[9px]" },
+    md: { icon: 72, text: "text-4xl", tag: "text-[11px]" },
+    lg: { icon: 110, text: "text-6xl", tag: "text-sm" },
   };
   const s = sizes[size];
   return (
@@ -502,103 +502,85 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
       { id: "i15", number: "1.00-HPUR-SS12-3012030-N-4", systemId: "s2", size: '1.00"', page: "4", welderId: "w8", description: "HPUR point of use" },
     ];
 
-    // Build daily logs: 5 days of welds for most welders
+    // === BUILD DAILY LOGS distributed over 90 days (realistic pattern) ===
     const dailyLogs = [];
-    const machineW1 = "8507420200", headW1 = "8277410259";
-    const machineW2 = "8507420185", headW2 = "8277410244";
-    const machineW3 = "8507420210", headW3 = "8277410268";
+    const machines = {
+      w1: { machine: "8507420200", head: "8277410259", gasCyl: "31833260", lot: "S111605P" },
+      w2: { machine: "8507420185", head: "8277410244", gasCyl: "31833270", lot: "S111612A" },
+      w3: { machine: "8507420210", head: "8277410268", gasCyl: "31833281", lot: "S111628B" },
+      w4: { machine: "8507420195", head: "8277410251", gasCyl: "31833295", lot: "S111640C" },
+      w5: { machine: "8507420202", head: "8277410262", gasCyl: "31833302", lot: "S111655D" },
+      w6: { machine: "8507420221", head: "8277410278", gasCyl: "31833315", lot: "S111670E" },
+      w7: { machine: "8507420215", head: "8277410271", gasCyl: "31833322", lot: "S111685F" },
+      w8: { machine: "8507420198", head: "8277410254", gasCyl: "31833338", lot: "S111692G" },
+    };
 
-    // === HECTOR (w1) - 3 days ===
-    dailyLogs.push({
-      id: "log-w1-0", welderId: "w1", date: d(0), jobNumber: "24.715.0002", gasCylinder: "31833260",
-      lot1: "S111605P", lot2: "", cylinder: "31833260", cylinder2: "",
-      entries: Array.from({length: 6}, (_, n) => ({
-        id: `e-w1-0-${n}`, size: "2.00", machine: machineW1, iso: isos[0].number,
-        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "5", head: headW1, system: "RV", comments: ""
-      })),
-    });
-    dailyLogs.push({
-      id: "log-w1-1", welderId: "w1", date: d(1), jobNumber: "24.715.0002", gasCylinder: "31833260",
-      lot1: "S111605P", lot2: "", cylinder: "31833260", cylinder2: "",
-      entries: Array.from({length: 6}, (_, n) => ({
-        id: `e-w1-1-${n}`, size: "2.00", machine: machineW1, iso: isos[1].number,
-        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "5", head: headW1, system: "RV", comments: ""
-      })),
-    });
-    dailyLogs.push({
-      id: "log-w1-2", welderId: "w1", date: d(2), jobNumber: "24.715.0002", gasCylinder: "31833260",
-      lot1: "S111605P", lot2: "", cylinder: "31833260", cylinder2: "",
-      entries: Array.from({length: 5}, (_, n) => ({
-        id: `e-w1-2-${n}`, size: "2.00", machine: machineW1, iso: isos[2].number,
-        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "5", head: headW1, system: "RV", comments: ""
-      })),
-    });
+    // Welder-to-ISO assignments
+    const welderWork = {
+      w1: [{iso: isos[0], size: "2.00", sys: "RV", prog: "5"}, {iso: isos[1], size: "2.00", sys: "RV", prog: "5"}, {iso: isos[2], size: "2.00", sys: "RV", prog: "5"}],
+      w2: [{iso: isos[3], size: "1.50", sys: "HPUR", prog: "3"}, {iso: isos[4], size: "1.50", sys: "HPUR", prog: "3"}],
+      w3: [{iso: isos[5], size: "3.00", sys: "HPUR", prog: "7"}, {iso: isos[6], size: "3.00", sys: "HPUR", prog: "7"}],
+      w4: [{iso: isos[7], size: "1.00", sys: "PV", prog: "2"}, {iso: isos[8], size: "2.00", sys: "PV", prog: "5"}],
+      w5: [{iso: isos[9], size: "1.50", sys: "RO", prog: "3"}, {iso: isos[10], size: "1.50", sys: "RO", prog: "3"}],
+      w6: [{iso: isos[11], size: "4.00", sys: "CIPS", prog: "9"}, {iso: isos[12], size: "4.00", sys: "CIPR", prog: "9"}],
+      w7: [{iso: isos[13], size: "2.00", sys: "RV", prog: "5"}],
+      w8: [{iso: isos[14], size: "1.00", sys: "HPUR", prog: "2"}],
+    };
 
-    // === NELVIN (w2) - 2 days ===
-    dailyLogs.push({
-      id: "log-w2-0", welderId: "w2", date: d(0), jobNumber: "24.715.0002", gasCylinder: "31833270",
-      lot1: "S111612A", lot2: "", cylinder: "31833270", cylinder2: "",
-      entries: Array.from({length: 4}, (_, n) => ({
-        id: `e-w2-0-${n}`, size: "1.50", machine: machineW2, iso: isos[3].number,
-        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "3", head: headW2, system: "HPUR", comments: ""
-      })),
-    });
-    dailyLogs.push({
-      id: "log-w2-1", welderId: "w2", date: d(1), jobNumber: "24.715.0002", gasCylinder: "31833270",
-      lot1: "S111612A", lot2: "", cylinder: "31833270", cylinder2: "",
-      entries: Array.from({length: 5}, (_, n) => ({
-        id: `e-w2-1-${n}`, size: "1.50", machine: machineW2, iso: isos[4].number,
-        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "3", head: headW2, system: "HPUR", comments: ""
-      })),
-    });
+    // Deterministic pseudo-random (reproducible demo)
+    let seed = 42;
+    const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
 
-    // === NATHANIEL (w3) - 2 days ===
-    dailyLogs.push({
-      id: "log-w3-0", welderId: "w3", date: d(0), jobNumber: "24.715.0002", gasCylinder: "31833281",
-      lot1: "S111628B", lot2: "", cylinder: "31833281", cylinder2: "",
-      entries: Array.from({length: 4}, (_, n) => ({
-        id: `e-w3-0-${n}`, size: "3.00", machine: machineW3, iso: isos[5].number,
-        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "7", head: headW3, system: "HPUR", comments: ""
-      })),
-    });
-    dailyLogs.push({
-      id: "log-w3-1", welderId: "w3", date: d(1), jobNumber: "24.715.0002", gasCylinder: "31833281",
-      lot1: "S111628B", lot2: "", cylinder: "31833281", cylinder2: "",
-      entries: Array.from({length: 3}, (_, n) => ({
-        id: `e-w3-1-${n}`, size: "3.00", machine: machineW3, iso: isos[6].number,
-        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "7", head: headW3, system: "HPUR", comments: ""
-      })),
-    });
+    let logIdCounter = 0;
+    const weldCounters = { w1: 1, w2: 1, w3: 1, w4: 1, w5: 1, w6: 1, w7: 1, w8: 1 };
 
-    // === MICHAEL (w4) - 1 day ===
-    dailyLogs.push({
-      id: "log-w4-0", welderId: "w4", date: d(1), jobNumber: "24.715.0002", gasCylinder: "31833295",
-      lot1: "S111640C", lot2: "", cylinder: "31833295", cylinder2: "",
-      entries: Array.from({length: 5}, (_, n) => ({
-        id: `e-w4-0-${n}`, size: "1.00", machine: "8507420195", iso: isos[7].number,
-        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "2", head: "8277410251", system: "PV", comments: ""
-      })),
-    });
+    // Generate 90 days of welds — skip weekends, vary intensity by recency
+    for (let daysAgo = 89; daysAgo >= 0; daysAgo--) {
+      const dt = new Date(today); dt.setDate(dt.getDate() - daysAgo);
+      const dayOfWeek = dt.getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) continue; // skip weekends
+      const dateStr = dt.toISOString().split("T")[0];
+      const recencyFactor = 1 - (daysAgo / 120);
 
-    // === DAVID (w5) - 1 day ===
-    dailyLogs.push({
-      id: "log-w5-0", welderId: "w5", date: d(0), jobNumber: "24.715.0002", gasCylinder: "31833302",
-      lot1: "S111655D", lot2: "", cylinder: "31833302", cylinder2: "",
-      entries: Array.from({length: 4}, (_, n) => ({
-        id: `e-w5-0-${n}`, size: "1.50", machine: "8507420202", iso: isos[9].number,
-        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "3", head: "8277410262", system: "RO", comments: ""
-      })),
-    });
+      Object.keys(welderWork).forEach((wId) => {
+        const workProb = 0.4 + recencyFactor * 0.4;
+        if (rnd() > workProb) return;
 
-    // === JOSE (w6) - 1 day ===
-    dailyLogs.push({
-      id: "log-w6-0", welderId: "w6", date: d(2), jobNumber: "24.715.0002", gasCylinder: "31833315",
-      lot1: "S111670E", lot2: "", cylinder: "31833315", cylinder2: "",
-      entries: Array.from({length: 3}, (_, n) => ({
-        id: `e-w6-0-${n}`, size: "4.00", machine: "8507420221", iso: isos[11].number,
-        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "9", head: "8277410278", system: "CIPS", comments: ""
-      })),
-    });
+        const m = machines[wId];
+        const workItems = welderWork[wId];
+        const workItem = workItems[Math.floor(rnd() * workItems.length)];
+        const numWelds = Math.max(2, Math.floor(2 + rnd() * 5 + recencyFactor * 2));
+
+        const entries = Array.from({length: numWelds}, (_, n) => {
+          const weldNum = weldCounters[wId]++;
+          return {
+            id: `e-${wId}-${daysAgo}-${n}`,
+            size: workItem.size,
+            machine: m.machine,
+            iso: workItem.iso.number,
+            weldNumber: `FW${String(weldNum).padStart(2,"0")}`,
+            bottle: "1",
+            program: workItem.prog,
+            head: m.head,
+            system: workItem.sys,
+            comments: "",
+          };
+        });
+
+        dailyLogs.push({
+          id: `log-${logIdCounter++}`,
+          welderId: wId,
+          date: dateStr,
+          jobNumber: "24.715.0002",
+          gasCylinder: m.gasCyl,
+          lot1: m.lot,
+          lot2: "",
+          cylinder: m.gasCyl,
+          cylinder2: "",
+          entries,
+        });
+      });
+    }
 
     // === INSPECTIONS - most accepted, a few rejected, some pending ===
     const inspections = [];
@@ -625,26 +607,26 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
 
     // === COUPONS ===
     const coupons = [
-      { id: "c1", welderId: "w1", welderName: "Hector Albizu", date: d(0), time: time(7, 15), reason: "START OF SHIFT", size: "2.00", machine: machineW1, head: headW1, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 32), createdAt: new Date().toISOString() },
-      { id: "c2", welderId: "w2", welderName: "Nelvin Ojeda", date: d(0), time: time(7, 20), reason: "START OF SHIFT", size: "1.50", machine: machineW2, head: headW2, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 38), createdAt: new Date().toISOString() },
-      { id: "c3", welderId: "w3", welderName: "Nathaniel Jacob", date: d(0), time: time(7, 25), reason: "START OF SHIFT", size: "3.00", machine: machineW3, head: headW3, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 45), createdAt: new Date().toISOString() },
+      { id: "c1", welderId: "w1", welderName: "Hector Albizu", date: d(0), time: time(7, 15), reason: "START OF SHIFT", size: "2.00", machine: machines.w1.machine, head: machines.w1.head, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 32), createdAt: new Date().toISOString() },
+      { id: "c2", welderId: "w2", welderName: "Nelvin Ojeda", date: d(0), time: time(7, 20), reason: "START OF SHIFT", size: "1.50", machine: machines.w2.machine, head: machines.w2.head, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 38), createdAt: new Date().toISOString() },
+      { id: "c3", welderId: "w3", welderName: "Nathaniel Jacob", date: d(0), time: time(7, 25), reason: "START OF SHIFT", size: "3.00", machine: machines.w3.machine, head: machines.w3.head, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 45), createdAt: new Date().toISOString() },
       { id: "c4", welderId: "w5", welderName: "David Santiago", date: d(0), time: time(7, 30), reason: "START OF SHIFT", size: "1.50", machine: "8507420202", head: "8277410262", status: "accepted", qcInitial: "BC", reviewedTime: time(7, 50), createdAt: new Date().toISOString() },
-      { id: "c5", welderId: "w1", welderName: "Hector Albizu", date: d(0), time: time(10, 45), reason: "ADDITIONAL COUPON", size: "2.00", machine: machineW1, head: headW1, status: "ready", createdAt: new Date().toISOString() },
-      { id: "c6", welderId: "w2", welderName: "Nelvin Ojeda", date: d(1), time: time(7, 18), reason: "START OF SHIFT", size: "1.50", machine: machineW2, head: headW2, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 40), createdAt: new Date().toISOString() },
-      { id: "c7", welderId: "w3", welderName: "Nathaniel Jacob", date: d(1), time: time(7, 22), reason: "START OF SHIFT", size: "3.00", machine: machineW3, head: headW3, status: "rejected", qcInitial: "BC", reviewedTime: time(7, 55), rejectReason: "Color/oxidation on inside — purge issue", createdAt: new Date().toISOString() },
-      { id: "c8", welderId: "w3", welderName: "Nathaniel Jacob", date: d(1), time: time(8, 15), reason: "ADDITIONAL COUPON", size: "3.00", machine: machineW3, head: headW3, status: "accepted", qcInitial: "BC", reviewedTime: time(8, 30), createdAt: new Date().toISOString() },
-      { id: "c9", welderId: "w1", welderName: "Hector Albizu", date: d(2), time: time(7, 10), reason: "START OF SHIFT", size: "2.00", machine: machineW1, head: headW1, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 28), createdAt: new Date().toISOString() },
+      { id: "c5", welderId: "w1", welderName: "Hector Albizu", date: d(0), time: time(10, 45), reason: "ADDITIONAL COUPON", size: "2.00", machine: machines.w1.machine, head: machines.w1.head, status: "ready", createdAt: new Date().toISOString() },
+      { id: "c6", welderId: "w2", welderName: "Nelvin Ojeda", date: d(1), time: time(7, 18), reason: "START OF SHIFT", size: "1.50", machine: machines.w2.machine, head: machines.w2.head, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 40), createdAt: new Date().toISOString() },
+      { id: "c7", welderId: "w3", welderName: "Nathaniel Jacob", date: d(1), time: time(7, 22), reason: "START OF SHIFT", size: "3.00", machine: machines.w3.machine, head: machines.w3.head, status: "rejected", qcInitial: "BC", reviewedTime: time(7, 55), rejectReason: "Color/oxidation on inside — purge issue", createdAt: new Date().toISOString() },
+      { id: "c8", welderId: "w3", welderName: "Nathaniel Jacob", date: d(1), time: time(8, 15), reason: "ADDITIONAL COUPON", size: "3.00", machine: machines.w3.machine, head: machines.w3.head, status: "accepted", qcInitial: "BC", reviewedTime: time(8, 30), createdAt: new Date().toISOString() },
+      { id: "c9", welderId: "w1", welderName: "Hector Albizu", date: d(2), time: time(7, 10), reason: "START OF SHIFT", size: "2.00", machine: machines.w1.machine, head: machines.w1.head, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 28), createdAt: new Date().toISOString() },
       { id: "c10", welderId: "w6", welderName: "Jose Martinez", date: d(2), time: time(7, 15), reason: "START OF SHIFT", size: "4.00", machine: "8507420221", head: "8277410278", status: "accepted", qcInitial: "BC", reviewedTime: time(7, 40), createdAt: new Date().toISOString() },
     ];
 
     // === TOOLS ===
     const tools = [
-      { id: "t1", name: "Arc Machines Model 207A Power Supply", serial: machineW1, welderId: "w1" },
-      { id: "t2", name: 'Weld Head 2" OD (Model 9-2500)', serial: headW1, welderId: "w1" },
-      { id: "t3", name: "Arc Machines Model 207A Power Supply", serial: machineW2, welderId: "w2" },
-      { id: "t4", name: 'Weld Head 1.5" OD (Model 9-1500)', serial: headW2, welderId: "w2" },
-      { id: "t5", name: "Arc Machines Model 207A Power Supply", serial: machineW3, welderId: "w3" },
-      { id: "t6", name: 'Weld Head 3" OD (Model 9-3000)', serial: headW3, welderId: "w3" },
+      { id: "t1", name: "Arc Machines Model 207A Power Supply", serial: machines.w1.machine, welderId: "w1" },
+      { id: "t2", name: 'Weld Head 2" OD (Model 9-2500)', serial: machines.w1.head, welderId: "w1" },
+      { id: "t3", name: "Arc Machines Model 207A Power Supply", serial: machines.w2.machine, welderId: "w2" },
+      { id: "t4", name: 'Weld Head 1.5" OD (Model 9-1500)', serial: machines.w2.head, welderId: "w2" },
+      { id: "t5", name: "Arc Machines Model 207A Power Supply", serial: machines.w3.machine, welderId: "w3" },
+      { id: "t6", name: 'Weld Head 3" OD (Model 9-3000)', serial: machines.w3.head, welderId: "w3" },
       { id: "t7", name: "Olympus IPLEX G Borescope", serial: "BRS-00231", welderId: null },
       { id: "t8", name: "Argon Flowmeter 0-30 CFH", serial: "FM-10045", welderId: null },
       { id: "t9", name: "Tungsten Grinder - Diamond Ground", serial: "TG-DGT-7723", welderId: null },
@@ -652,7 +634,26 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
     ];
 
     setData((d) => ({ ...d, welders, systems, isos, dailyLogs, inspections, coupons, tools }));
-    alert("Demo data loaded successfully. The app is now populated with WARP10 Hygienic project data.");
+    alert(
+      "✓ Demo data loaded successfully!\n\n" +
+      `Project: WARP10 Hygienic (Job #24.715.0002)\n` +
+      `• ${welders.length} welders · ${isos.length} ISOs · ${dailyLogs.length} daily logs\n` +
+      `• ${dailyLogs.reduce((s,l) => s + l.entries.length, 0)} total welds · ${inspections.length} inspections · ${coupons.length} coupons\n` +
+      `• Data spans the last 90 days\n\n` +
+      "LOGIN CREDENTIALS FOR DEMO:\n" +
+      "─────────────────────────────\n" +
+      "ADMIN:  admin / admin\n" +
+      "QC:     qc / qc\n\n" +
+      "WELDERS (login with Welder ID + password):\n" +
+      "• Hector Albizu     → 5892 / 5892\n" +
+      "• Nelvin Ojeda      → 6789 / 6789\n" +
+      "• Nathaniel Jacob   → 3456 / 3456\n" +
+      "• Michael Rodriguez → 4521 / 4521\n" +
+      "• David Santiago    → 7823 / 7823\n" +
+      "• Jose Martinez     → 2914 / 2914\n" +
+      "• Carlos Ramirez    → 6102 / 6102\n" +
+      "• Luis Fernandez    → 8347 / 8347"
+    );
   };
 
   const clearAllData = () => {
@@ -746,7 +747,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
       <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
           <Logo size="md" />
           <div className="flex items-center gap-2">
             <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 border rounded ${roleColors}`}>
