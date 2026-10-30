@@ -19,9 +19,9 @@ const btnPrimaryFull = "w-full bg-blue-700 hover:bg-blue-800 text-white font-bol
 
 function Logo({ size = "md" }) {
   const sizes = {
-    sm: { icon: 28, text: "text-lg", tag: "text-[7px]" },
-    md: { icon: 38, text: "text-2xl", tag: "text-[8px]" },
-    lg: { icon: 56, text: "text-4xl", tag: "text-[10px]" },
+    sm: { icon: 36, text: "text-xl", tag: "text-[8px]" },
+    md: { icon: 54, text: "text-3xl", tag: "text-[9px]" },
+    lg: { icon: 80, text: "text-5xl", tag: "text-xs" },
   };
   const s = sizes[size];
   return (
@@ -34,9 +34,9 @@ function Logo({ size = "md" }) {
             <stop offset="100%" stopColor="#1e3a8a" />
           </linearGradient>
         </defs>
-        {/* Tubería horizontal */}
+        {/* Horizontal pipe */}
         <rect x="5" y="42" width="90" height="20" fill="url(#logoGrad)" rx="3" />
-        {/* Junta de soldadura (weld point) - círculo blanco con borde azul */}
+        {/* Weld point - white circle with blue border */}
         <circle cx="50" cy="52" r="18" fill="white" stroke="url(#logoGrad)" strokeWidth="4" />
         {/* Check verde de calidad */}
         <path d="M 42 52 L 48 58 L 60 46" stroke="#10b981" strokeWidth="4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
@@ -157,7 +157,7 @@ function LoginScreen({ users, welders, onLogin }) {
             <input value={username} onChange={(e) => setUsername(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} className={inputCls} placeholder="admin / qc / welder ID" autoFocus />
           </div>
           <div>
-            <label className="text-xs text-slate-600 font-semibold tracking-wider block mb-1.5">CONTRASEÑA</label>
+            <label className="text-xs text-slate-600 font-semibold tracking-wider block mb-1.5">PASSWORD</label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} className={inputCls} />
           </div>
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded flex items-center gap-2"><AlertCircle size={14} /> {error}</div>}
@@ -191,17 +191,17 @@ function CodesView() {
   const sections = [
     {
       id: "welding",
-      title: "Soldadura Orbital",
+      title: "Orbital Welding",
       ref: "U328 — Welding",
       icon: Wrench,
       color: "blue",
-      summary: "GTAW orbital autógena es el proceso obligatorio para tubería sanitaria.",
+      summary: "GTAW orbital autogenous is the required process for sanitary piping.",
       points: [
-        { label: "Proceso requerido", value: "GTAW Orbital Autógena (sin filler)" },
-        { label: "Excepciones manuales", value: "Solo tack welds o donde la cabeza orbital no aplique (con aprobación del owner)" },
-        { label: "Gas de purga (back-purge)", value: "Argón 99.999% mín. — cambio de tipo requiere requalificación WPS" },
-        { label: "Tack welds", value: "Deben consumirse completamente al soldar el pase final" },
-        { label: "WPS / WPQ", value: "Calificados conforme a ASME Sec. IX + criterios de ASME BPE" },
+        { label: "Required process", value: "GTAW Orbital Autogenous (no filler)" },
+        { label: "Manual exceptions", value: "Only tack welds or where the orbital head doesn't apply (with owner approval)" },
+        { label: "Purge gas (back-purge)", value: "Argon 99.999% min. — type change requires WPS requalification" },
+        { label: "Tack welds", value: "Must be completely consumed when welding the final pass" },
+        { label: "WPS / WPQ", value: "Qualified per ASME Sec. IX + ASME BPE criteria" },
       ],
     },
     {
@@ -210,27 +210,27 @@ function CodesView() {
       ref: "U328.4.4 / U344.8",
       icon: FileCheck,
       color: "indigo",
-      summary: "Cupones de prueba obligatorios al inicio de cada turno y tras cualquier cambio.",
+      summary: "Test coupons required at start of each shift and after any change.",
       points: [
-        { label: "Frecuencia mínima", value: "Al inicio de cada turno (start-of-shift)" },
-        { label: "Cambio de gas de purga", value: "Requiere nuevo cupón antes de producir" },
-        { label: "Cambio de power supply", value: "Requiere nuevo cupón" },
-        { label: "Cambio de electrodo de tungsteno", value: "Requiere nuevo cupón" },
-        { label: "Cambio de O.D. o espesor", value: "Requiere nuevo cupón" },
-        { label: "Cambio de operador", value: "Cada operador debe tener su cupón representativo" },
+        { label: "Minimum frequency", value: "At the start of each shift (start-of-shift)" },
+        { label: "Purge gas change", value: "Requires new coupon before production" },
+        { label: "Power supply change", value: "Requires new coupon" },
+        { label: "Tungsten electrode change", value: "Requires new coupon" },
+        { label: "O.D. or wall thickness change", value: "Requires new coupon" },
+        { label: "Operator change", value: "Each operator must have their representative coupon" },
       ],
     },
     {
       id: "joints",
-      title: "Juntas Sanitarias",
+      title: "Sanitary Joints",
       ref: "U335.7 / U335.8",
       icon: Link2,
       color: "cyan",
       summary: "Tri-Clamp, face seal y hygienic clamp joints para conexiones desmontables.",
       points: [
-        { label: "Hygienic Clamp (Tri-Clamp)", value: "Ferrules Tipo A (¼\"–1\") y Tipo B (≥1\") según ASME BPE" },
+        { label: "Hygienic Clamp (Tri-Clamp)", value: "Ferrules Type A (¼\"-1\") and Type B (≥1\") per ASME BPE" },
         { label: "Tipos de clamp", value: "Two-piece single/double pin, three-piece, two-bolt heavy duty" },
-        { label: "Metal Face Seal", value: "Permitido — instalación según fabricante (gland + gasket metálico)" },
+        { label: "Metal Face Seal", value: "Allowed — install per manufacturer (gland + metallic gasket)" },
         { label: "Compression fittings", value: "Permitidos solo si stress intensity factor ≤ 1.5" },
         { label: "Threaded joints", value: "Evitar siempre que sea posible (U314)" },
         { label: "Brazing / Soldering", value: "❌ NO permitido en High Purity (U333)" },
@@ -238,65 +238,65 @@ function CodesView() {
     },
     {
       id: "materials",
-      title: "Materiales & Acabado",
+      title: "Materials & Finish",
       ref: "U323 / ASME BPE Part SF",
       icon: Layers,
       color: "violet",
-      summary: "Aceros inoxidables austeníticos con acabado interior controlado.",
+      summary: "Austenitic stainless steels with controlled interior finish.",
       points: [
-        { label: "Materiales típicos", value: "316L (UNS S31603), 304L, dúplex, aleaciones de níquel" },
-        { label: "Carbono máximo", value: "0.030% (grado L) para evitar sensibilización por soldadura" },
-        { label: "Acabado SF1 mecánico", value: "Ra ≤ 0.51 μm (20 μin) — superficie en contacto con producto" },
-        { label: "Acabado SF4 electropulido", value: "Ra ≤ 0.38 μm (15 μin) — productos farmacéuticos críticos" },
-        { label: "Pasivación", value: "Requerida post-fabricación (ácido cítrico o nítrico)" },
-        { label: "Trazabilidad MTR", value: "Heat number en cada componente (tubería, fittings, válvulas)" },
+        { label: "Typical materials", value: "316L (UNS S31603), 304L, duplex, nickel alloys" },
+        { label: "Maximum carbon", value: "0.030% (L grade) to avoid weld sensitization" },
+        { label: "SF1 mechanical finish", value: "Ra ≤ 0.51 μm (20 μin) — product-contact surface" },
+        { label: "SF4 electropolished finish", value: "Ra ≤ 0.38 μm (15 μin) — critical pharmaceutical products" },
+        { label: "Passivation", value: "Required post-fabrication (citric or nitric acid)" },
+        { label: "MTR traceability", value: "Heat number on each component (pipe, fittings, valves)" },
       ],
     },
     {
       id: "preparation",
-      title: "Preparación de Bordes",
+      title: "Edge Preparation",
       ref: "U328.4.2",
       icon: Sparkles,
       color: "orange",
-      summary: "Preparación de extremos según espesor y tipo de soldadura orbital.",
+      summary: "End preparation per wall thickness and orbital weld type.",
       points: [
-        { label: "Pared ≤ 3.18 mm (0.125\")", value: "Square cut según ASME BPE / SEMI" },
+        { label: "Wall ≤ 3.18 mm (0.125\")", value: "Square cut per ASME BPE / SEMI" },
         { label: "Pared 4.76 – 22.22 mm", value: "Bisel \"J\" o modificado conforme ASME B16.25" },
-        { label: "Land thickness", value: "1.5 mm (1/16\") — extensión ≥ land" },
+        { label: "Land thickness", value: "1.5 mm (1/16\") — extension ≥ land" },
         { label: "Root opening", value: "0 a 0.8 mm (0 a 1/32\")" },
-        { label: "Alineación interna", value: "Hi-lo dentro de tolerancia ASME BPE (típ. ≤ 15% espesor)" },
-        { label: "Limpieza pre-soldadura", value: "Solvente sin residuos, libre de aceites y marcas" },
+        { label: "Internal alignment", value: "Hi-lo within ASME BPE tolerance (typ. ≤ 15% thickness)" },
+        { label: "Pre-weld cleaning", value: "Residue-free solvent, free of oils and marks" },
       ],
     },
     {
       id: "examination",
-      title: "Examinación",
+      title: "Examination",
       ref: "U341 / U344",
       icon: Eye,
       color: "emerald",
-      summary: "Inspección visual interna con borescopio + cupones documentados.",
+      summary: "Internal visual inspection with borescope + documented coupons.",
       points: [
-        { label: "Visual externa (VT)", value: "100% de soldaduras — color, perfil, alineación" },
-        { label: "Borescopia interna", value: "Aceptable y recomendada (U344.2) — penetración y decoloración" },
-        { label: "Cupones de producción", value: "Sustituyen al 5% RT cuando se usa orbital GTAW" },
-        { label: "Color/oxidación interna", value: "Según ASME BPE Tabla MJ-8.4 (typically AWS D18.1/D18.2)" },
-        { label: "Defectos no permitidos", value: "Concavidad excesiva, falta de fusión, óxido suelto, grieta" },
-        { label: "Examinador", value: "Independiente del soldador (U342.2) — calificado SNT-TC-1A" },
+        { label: "External visual (VT)", value: "100% of welds — color, profile, alignment" },
+        { label: "Internal borescope", value: "Accepted and recommended (U344.2) — penetration and discoloration" },
+        { label: "Production coupons", value: "Replace 5% RT when orbital GTAW is used" },
+        { label: "Internal color/oxidation", value: "Per ASME BPE Table MJ-8.4 (typically AWS D18.1/D18.2)" },
+        { label: "Non-permitted defects", value: "Excessive concavity, lack of fusion, loose oxide, crack" },
+        { label: "Examiner", value: "Independent of welder (U342.2) — SNT-TC-1A qualified" },
       ],
     },
     {
       id: "documentation",
-      title: "Documentación",
+      title: "Documentation",
       ref: "ASME BPE Part GR",
       icon: ShieldCheck,
       color: "rose",
-      summary: "Trazabilidad completa de cada soldadura y prueba para auditoría.",
+      summary: "Complete traceability of each weld and test for audit.",
       points: [
-        { label: "Weld Map / ISO", value: "Cada soldadura numerada y asignada a su soldador" },
-        { label: "Weld Log", value: "Fecha, turno, programa orbital, head, gas, lot del tubo" },
-        { label: "Coupon Log", value: "Resultado de cada cupón con fotografía/borescopia" },
-        { label: "Reporte de pasivación", value: "Método, concentración, tiempo, prueba de hierro libre" },
-        { label: "MTRs", value: "Por cada heat de tubería, fitting y filler (si aplica)" },
+        { label: "Weld Map / ISO", value: "Each weld numbered and assigned to its welder" },
+        { label: "Weld Log", value: "Date, shift, orbital program, head, gas, pipe lot" },
+        { label: "Coupon Log", value: "Each coupon result with photo/borescope" },
+        { label: "Passivation report", value: "Method, concentration, time, free iron test" },
+        { label: "MTRs", value: "Per each pipe, fitting and filler heat (if applicable)" },
         { label: "Turn-Over Package (TOP)", value: "Entrega final al owner con todo el legajo" },
       ],
     },
@@ -320,7 +320,7 @@ function CodesView() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-black tracking-tight text-slate-900 mb-1">SANITARY WELDING CODES</h2>
-        <p className="text-slate-500 text-xs tracking-wider font-semibold">REFERENCIA TÉCNICA · TUBERÍA DE ALTA PUREZA</p>
+        <p className="text-slate-500 text-xs tracking-wider font-semibold">TECHNICAL REFERENCE · HIGH PURITY PIPING</p>
       </div>
 
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-blue-900 to-cyan-900 text-white shadow-xl">
@@ -339,7 +339,7 @@ function CodesView() {
                   <span className="px-3 py-1 text-[10px] font-bold tracking-widest uppercase bg-cyan-500/20 text-cyan-200 rounded-full border border-cyan-400/30">High Purity Fluid Service</span>
                 </div>
                 <h1 className="text-3xl sm:text-4xl font-black tracking-tight leading-none">SANITARY PIPING</h1>
-                <p className="text-xl sm:text-2xl font-light mt-2 text-cyan-100">Aplicaciones farmacéuticas, biotech y alimentos</p>
+                <p className="text-xl sm:text-2xl font-light mt-2 text-cyan-100">Pharmaceutical, biotech and food applications</p>
                 <p className="text-sm text-slate-400 mt-1">Pharmaceutical · Biotech · Food &amp; Beverage · Cosmetics</p>
               </div>
             </div>
@@ -428,7 +428,7 @@ function CodesView() {
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 sm:p-5 flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
         <div className="text-xs sm:text-sm text-amber-900">
-          <strong className="font-bold">Aviso de cumplimiento:</strong> Este resumen es una referencia operativa para tubería sanitaria/alta pureza. Toda calificación, soldadura, examinación y prueba debe ejecutarse conforme al texto íntegro de <strong>ASME B31.3-2024 Chapter X</strong>, <strong>ASME BPE</strong> y a las especificaciones del proyecto. En caso de discrepancia, prevalece el código y la spec del owner.
+          <strong className="font-bold">Compliance notice:</strong> This summary is an operational reference for sanitary/high purity piping. All qualification, welding, examination and testing must be performed per the full text of <strong>ASME B31.3-2024 Chapter X</strong>, <strong>ASME BPE</strong> and the project specifications. In case of discrepancy, the code and owner spec prevail.
         </div>
       </div>
     </div>
@@ -455,11 +455,212 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
   const addInspection = (i) => setData((d) => ({ ...d, inspections: [...d.inspections, { ...i, id: Date.now().toString() }] }));
   const deleteInspection = (id) => { if (!confirm("Delete inspection?")) return; setData((d) => ({ ...d, inspections: d.inspections.filter((i) => i.id !== id) })); };
   const addSystem = (name) => setData((d) => ({ ...d, systems: [...(d.systems || []), { id: Date.now().toString(), name: name.trim().toUpperCase() }] }));
-  const deleteSystem = (id) => { if (!confirm("Delete system? Los ISOs con este sistema quedarán sin clasificar.")) return; setData((d) => ({ ...d, systems: (d.systems || []).filter((s) => s.id !== id) })); };
+  const deleteSystem = (id) => { if (!confirm("Delete system? ISOs with this system will become unclassified.")) return; setData((d) => ({ ...d, systems: (d.systems || []).filter((s) => s.id !== id) })); };
   const updateIso = (isoId, fields) => setData((d) => ({ ...d, isos: d.isos.map((i) => i.id === isoId ? { ...i, ...fields } : i) }));
   const addCoupon = (c) => setData((d) => ({ ...d, coupons: [...(d.coupons || []), { ...c, id: Date.now().toString(), createdAt: new Date().toISOString() }] }));
   const updateCoupon = (id, fields) => setData((d) => ({ ...d, coupons: (d.coupons || []).map((c) => c.id === id ? { ...c, ...fields } : c) }));
   const deleteCoupon = (id) => { if (!confirm("Delete coupon?")) return; setData((d) => ({ ...d, coupons: (d.coupons || []).filter((c) => c.id !== id) })); };
+
+  // === DEMO DATA for presentations ===
+  const loadDemoData = () => {
+    if (!confirm("Load demo data? This will replace all current data with a realistic WARP10 HYGIENIC project demo.")) return;
+    const today = new Date();
+    const d = (daysAgo) => { const dt = new Date(today); dt.setDate(dt.getDate() - daysAgo); return dt.toISOString().split("T")[0]; };
+    const time = (h, m) => `${h > 12 ? h - 12 : h}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+
+    const welders = [
+      { id: "w1", name: "Hector Albizu", welderId: "5892", password: "5892", stamp: "HA-5892" },
+      { id: "w2", name: "Nelvin Ojeda", welderId: "6789", password: "6789", stamp: "NO-6789" },
+      { id: "w3", name: "Nathaniel Jacob", welderId: "3456", password: "3456", stamp: "NJ-3456" },
+      { id: "w4", name: "Michael Rodriguez", welderId: "4521", password: "4521", stamp: "MR-4521" },
+      { id: "w5", name: "David Santiago", welderId: "7823", password: "7823", stamp: "DS-7823" },
+      { id: "w6", name: "Jose Martinez", welderId: "2914", password: "2914", stamp: "JM-2914" },
+      { id: "w7", name: "Carlos Ramirez", welderId: "6102", password: "6102", stamp: "CR-6102" },
+      { id: "w8", name: "Luis Fernandez", welderId: "8347", password: "8347", stamp: "LF-8347" },
+    ];
+
+    const systems = [
+      { id: "s1", name: "RV" }, { id: "s2", name: "HPUR" }, { id: "s3", name: "PV" },
+      { id: "s4", name: "RO" }, { id: "s5", name: "CIPS" }, { id: "s6", name: "CIPR" },
+    ];
+
+    const isos = [
+      { id: "i01", number: "2.00-RV-SS12-3035001-N-4", systemId: "s1", size: '2.00"', page: "4", welderId: "w1", description: "WARP10 Hygienic - RV distribution line" },
+      { id: "i02", number: "2.00-RV-SS12-3035002-N-4", systemId: "s1", size: '2.00"', page: "4", welderId: "w1", description: "WARP10 Hygienic - RV return loop" },
+      { id: "i03", number: "2.00-RV-SS12-3035036-N-5", systemId: "s1", size: '2.00"', page: "5", welderId: "w1", description: "WARP10 Hygienic - RV platform connection" },
+      { id: "i04", number: "1.50-HPUR-SS12-3012010-N-2", systemId: "s2", size: '1.50"', page: "2", welderId: "w2", description: "HPUR skid tie-in" },
+      { id: "i05", number: "1.50-HPUR-SS12-3012011-N-2", systemId: "s2", size: '1.50"', page: "2", welderId: "w2", description: "HPUR distribution branch" },
+      { id: "i06", number: "3.00-HPUR-SS12-3012020-N-3", systemId: "s2", size: '3.00"', page: "3", welderId: "w3", description: "HPUR main header" },
+      { id: "i07", number: "3.00-HPUR-SS12-3012021-N-3", systemId: "s2", size: '3.00"', page: "3", welderId: "w3", description: "HPUR header continuation" },
+      { id: "i08", number: "1.00-PV-SS12-3045101-N-1", systemId: "s3", size: '1.00"', page: "1", welderId: "w4", description: "PV sample port" },
+      { id: "i09", number: "2.00-PV-SS12-3045102-N-2", systemId: "s3", size: '2.00"', page: "2", welderId: "w4", description: "PV main line" },
+      { id: "i10", number: "1.50-RO-SS12-3067010-N-1", systemId: "s4", size: '1.50"', page: "1", welderId: "w5", description: "RO water supply" },
+      { id: "i11", number: "1.50-RO-SS12-3067011-N-1", systemId: "s4", size: '1.50"', page: "1", welderId: "w5", description: "RO return" },
+      { id: "i12", number: "4.00-CIPS-SS12-3089001-N-6", systemId: "s5", size: '4.00"', page: "6", welderId: "w6", description: "CIP supply header" },
+      { id: "i13", number: "4.00-CIPR-SS12-3089002-N-6", systemId: "s6", size: '4.00"', page: "6", welderId: "w6", description: "CIP return header" },
+      { id: "i14", number: "2.00-RV-SS12-3035040-N-7", systemId: "s1", size: '2.00"', page: "7", welderId: "w7", description: "RV sampling branch" },
+      { id: "i15", number: "1.00-HPUR-SS12-3012030-N-4", systemId: "s2", size: '1.00"', page: "4", welderId: "w8", description: "HPUR point of use" },
+    ];
+
+    // Build daily logs: 5 days of welds for most welders
+    const dailyLogs = [];
+    const machineW1 = "8507420200", headW1 = "8277410259";
+    const machineW2 = "8507420185", headW2 = "8277410244";
+    const machineW3 = "8507420210", headW3 = "8277410268";
+
+    // === HECTOR (w1) - 3 days ===
+    dailyLogs.push({
+      id: "log-w1-0", welderId: "w1", date: d(0), jobNumber: "24.715.0002", gasCylinder: "31833260",
+      lot1: "S111605P", lot2: "", cylinder: "31833260", cylinder2: "",
+      entries: Array.from({length: 6}, (_, n) => ({
+        id: `e-w1-0-${n}`, size: "2.00", machine: machineW1, iso: isos[0].number,
+        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "5", head: headW1, system: "RV", comments: ""
+      })),
+    });
+    dailyLogs.push({
+      id: "log-w1-1", welderId: "w1", date: d(1), jobNumber: "24.715.0002", gasCylinder: "31833260",
+      lot1: "S111605P", lot2: "", cylinder: "31833260", cylinder2: "",
+      entries: Array.from({length: 6}, (_, n) => ({
+        id: `e-w1-1-${n}`, size: "2.00", machine: machineW1, iso: isos[1].number,
+        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "5", head: headW1, system: "RV", comments: ""
+      })),
+    });
+    dailyLogs.push({
+      id: "log-w1-2", welderId: "w1", date: d(2), jobNumber: "24.715.0002", gasCylinder: "31833260",
+      lot1: "S111605P", lot2: "", cylinder: "31833260", cylinder2: "",
+      entries: Array.from({length: 5}, (_, n) => ({
+        id: `e-w1-2-${n}`, size: "2.00", machine: machineW1, iso: isos[2].number,
+        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "5", head: headW1, system: "RV", comments: ""
+      })),
+    });
+
+    // === NELVIN (w2) - 2 days ===
+    dailyLogs.push({
+      id: "log-w2-0", welderId: "w2", date: d(0), jobNumber: "24.715.0002", gasCylinder: "31833270",
+      lot1: "S111612A", lot2: "", cylinder: "31833270", cylinder2: "",
+      entries: Array.from({length: 4}, (_, n) => ({
+        id: `e-w2-0-${n}`, size: "1.50", machine: machineW2, iso: isos[3].number,
+        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "3", head: headW2, system: "HPUR", comments: ""
+      })),
+    });
+    dailyLogs.push({
+      id: "log-w2-1", welderId: "w2", date: d(1), jobNumber: "24.715.0002", gasCylinder: "31833270",
+      lot1: "S111612A", lot2: "", cylinder: "31833270", cylinder2: "",
+      entries: Array.from({length: 5}, (_, n) => ({
+        id: `e-w2-1-${n}`, size: "1.50", machine: machineW2, iso: isos[4].number,
+        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "3", head: headW2, system: "HPUR", comments: ""
+      })),
+    });
+
+    // === NATHANIEL (w3) - 2 days ===
+    dailyLogs.push({
+      id: "log-w3-0", welderId: "w3", date: d(0), jobNumber: "24.715.0002", gasCylinder: "31833281",
+      lot1: "S111628B", lot2: "", cylinder: "31833281", cylinder2: "",
+      entries: Array.from({length: 4}, (_, n) => ({
+        id: `e-w3-0-${n}`, size: "3.00", machine: machineW3, iso: isos[5].number,
+        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "7", head: headW3, system: "HPUR", comments: ""
+      })),
+    });
+    dailyLogs.push({
+      id: "log-w3-1", welderId: "w3", date: d(1), jobNumber: "24.715.0002", gasCylinder: "31833281",
+      lot1: "S111628B", lot2: "", cylinder: "31833281", cylinder2: "",
+      entries: Array.from({length: 3}, (_, n) => ({
+        id: `e-w3-1-${n}`, size: "3.00", machine: machineW3, iso: isos[6].number,
+        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "7", head: headW3, system: "HPUR", comments: ""
+      })),
+    });
+
+    // === MICHAEL (w4) - 1 day ===
+    dailyLogs.push({
+      id: "log-w4-0", welderId: "w4", date: d(1), jobNumber: "24.715.0002", gasCylinder: "31833295",
+      lot1: "S111640C", lot2: "", cylinder: "31833295", cylinder2: "",
+      entries: Array.from({length: 5}, (_, n) => ({
+        id: `e-w4-0-${n}`, size: "1.00", machine: "8507420195", iso: isos[7].number,
+        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "2", head: "8277410251", system: "PV", comments: ""
+      })),
+    });
+
+    // === DAVID (w5) - 1 day ===
+    dailyLogs.push({
+      id: "log-w5-0", welderId: "w5", date: d(0), jobNumber: "24.715.0002", gasCylinder: "31833302",
+      lot1: "S111655D", lot2: "", cylinder: "31833302", cylinder2: "",
+      entries: Array.from({length: 4}, (_, n) => ({
+        id: `e-w5-0-${n}`, size: "1.50", machine: "8507420202", iso: isos[9].number,
+        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "3", head: "8277410262", system: "RO", comments: ""
+      })),
+    });
+
+    // === JOSE (w6) - 1 day ===
+    dailyLogs.push({
+      id: "log-w6-0", welderId: "w6", date: d(2), jobNumber: "24.715.0002", gasCylinder: "31833315",
+      lot1: "S111670E", lot2: "", cylinder: "31833315", cylinder2: "",
+      entries: Array.from({length: 3}, (_, n) => ({
+        id: `e-w6-0-${n}`, size: "4.00", machine: "8507420221", iso: isos[11].number,
+        weldNumber: `FW${String(n+1).padStart(2,"0")}`, bottle: "1", program: "9", head: "8277410278", system: "CIPS", comments: ""
+      })),
+    });
+
+    // === INSPECTIONS - most accepted, a few rejected, some pending ===
+    const inspections = [];
+    const rejReasons = ["Lack of fusion", "Lack of penetration", "Color/oxidation", "Misalignment"];
+    let inspIdx = 0;
+    dailyLogs.forEach((log) => {
+      log.entries.forEach((e, i) => {
+        // ~85% get inspected, ~5% rejected, 10% pending
+        const roll = Math.random();
+        if (roll < 0.85) {
+          const isRejected = Math.random() < 0.06;
+          inspections.push({
+            id: `insp-${inspIdx++}`,
+            weldRef: `${log.id}-${e.id}`,
+            status: isRejected ? "rejected" : "accepted",
+            qcInitial: "BC",
+            date: log.date,
+            reason: isRejected ? rejReasons[Math.floor(Math.random() * rejReasons.length)] : "",
+            comments: "",
+          });
+        }
+      });
+    });
+
+    // === COUPONS ===
+    const coupons = [
+      { id: "c1", welderId: "w1", welderName: "Hector Albizu", date: d(0), time: time(7, 15), reason: "START OF SHIFT", size: "2.00", machine: machineW1, head: headW1, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 32), createdAt: new Date().toISOString() },
+      { id: "c2", welderId: "w2", welderName: "Nelvin Ojeda", date: d(0), time: time(7, 20), reason: "START OF SHIFT", size: "1.50", machine: machineW2, head: headW2, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 38), createdAt: new Date().toISOString() },
+      { id: "c3", welderId: "w3", welderName: "Nathaniel Jacob", date: d(0), time: time(7, 25), reason: "START OF SHIFT", size: "3.00", machine: machineW3, head: headW3, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 45), createdAt: new Date().toISOString() },
+      { id: "c4", welderId: "w5", welderName: "David Santiago", date: d(0), time: time(7, 30), reason: "START OF SHIFT", size: "1.50", machine: "8507420202", head: "8277410262", status: "accepted", qcInitial: "BC", reviewedTime: time(7, 50), createdAt: new Date().toISOString() },
+      { id: "c5", welderId: "w1", welderName: "Hector Albizu", date: d(0), time: time(10, 45), reason: "ADDITIONAL COUPON", size: "2.00", machine: machineW1, head: headW1, status: "ready", createdAt: new Date().toISOString() },
+      { id: "c6", welderId: "w2", welderName: "Nelvin Ojeda", date: d(1), time: time(7, 18), reason: "START OF SHIFT", size: "1.50", machine: machineW2, head: headW2, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 40), createdAt: new Date().toISOString() },
+      { id: "c7", welderId: "w3", welderName: "Nathaniel Jacob", date: d(1), time: time(7, 22), reason: "START OF SHIFT", size: "3.00", machine: machineW3, head: headW3, status: "rejected", qcInitial: "BC", reviewedTime: time(7, 55), rejectReason: "Color/oxidation on inside — purge issue", createdAt: new Date().toISOString() },
+      { id: "c8", welderId: "w3", welderName: "Nathaniel Jacob", date: d(1), time: time(8, 15), reason: "ADDITIONAL COUPON", size: "3.00", machine: machineW3, head: headW3, status: "accepted", qcInitial: "BC", reviewedTime: time(8, 30), createdAt: new Date().toISOString() },
+      { id: "c9", welderId: "w1", welderName: "Hector Albizu", date: d(2), time: time(7, 10), reason: "START OF SHIFT", size: "2.00", machine: machineW1, head: headW1, status: "accepted", qcInitial: "BC", reviewedTime: time(7, 28), createdAt: new Date().toISOString() },
+      { id: "c10", welderId: "w6", welderName: "Jose Martinez", date: d(2), time: time(7, 15), reason: "START OF SHIFT", size: "4.00", machine: "8507420221", head: "8277410278", status: "accepted", qcInitial: "BC", reviewedTime: time(7, 40), createdAt: new Date().toISOString() },
+    ];
+
+    // === TOOLS ===
+    const tools = [
+      { id: "t1", name: "Arc Machines Model 207A Power Supply", serial: machineW1, welderId: "w1" },
+      { id: "t2", name: 'Weld Head 2" OD (Model 9-2500)', serial: headW1, welderId: "w1" },
+      { id: "t3", name: "Arc Machines Model 207A Power Supply", serial: machineW2, welderId: "w2" },
+      { id: "t4", name: 'Weld Head 1.5" OD (Model 9-1500)', serial: headW2, welderId: "w2" },
+      { id: "t5", name: "Arc Machines Model 207A Power Supply", serial: machineW3, welderId: "w3" },
+      { id: "t6", name: 'Weld Head 3" OD (Model 9-3000)', serial: headW3, welderId: "w3" },
+      { id: "t7", name: "Olympus IPLEX G Borescope", serial: "BRS-00231", welderId: null },
+      { id: "t8", name: "Argon Flowmeter 0-30 CFH", serial: "FM-10045", welderId: null },
+      { id: "t9", name: "Tungsten Grinder - Diamond Ground", serial: "TG-DGT-7723", welderId: null },
+      { id: "t10", name: "Purge Dam Kit 1-4 inch", serial: "PDK-040", welderId: null },
+    ];
+
+    setData((d) => ({ ...d, welders, systems, isos, dailyLogs, inspections, coupons, tools }));
+    alert("Demo data loaded successfully. The app is now populated with WARP10 Hygienic project data.");
+  };
+
+  const clearAllData = () => {
+    if (!confirm("Clear ALL data? This cannot be undone.")) return;
+    if (!confirm("Are you ABSOLUTELY sure? All welders, ISOs, logs, inspections, coupons and tools will be deleted.")) return;
+    setData((d) => ({ ...d, welders: [], isos: [], dailyLogs: [], inspections: [], tools: [], systems: [], coupons: [] }));
+    alert("All data cleared.");
+  };
 
   const myWelderId = role === "welder" ? currentUser.id : null;
   const visibleLogs = role === "welder" ? data.dailyLogs.filter((l) => l.welderId === myWelderId) : data.dailyLogs;
@@ -559,7 +760,25 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
               <RoleIcon size={12} />
               <span className="text-[10px] tracking-widest font-bold">{roleLabel}</span>
             </div>
-            <button onClick={logout} className="text-slate-500 hover:text-red-600 p-2 hover:bg-red-50 rounded transition-colors" title="Salir">
+            {role === "admin" && (
+              <>
+                <button
+                  onClick={loadDemoData}
+                  className="hidden md:flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold tracking-widest px-2.5 py-1.5 rounded transition-colors"
+                  title="Load realistic demo data for presentations"
+                >
+                  <Sparkles size={12} /> DEMO DATA
+                </button>
+                <button
+                  onClick={clearAllData}
+                  className="hidden md:flex items-center gap-1 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 text-[10px] font-bold tracking-widest px-2.5 py-1.5 rounded border border-slate-200 transition-colors"
+                  title="Clear all data"
+                >
+                  <Trash2 size={12} /> CLEAR
+                </button>
+              </>
+            )}
+            <button onClick={logout} className="text-slate-500 hover:text-red-600 p-2 hover:bg-red-50 rounded transition-colors" title="Logout">
               <LogOut size={16} />
             </button>
           </div>
@@ -654,7 +873,7 @@ function DashboardView({ role, stats, data, visibleLogs, getWelderStats, current
           <KPI label="MIS WELDS" value={myStats.total} />
           <KPI label="ACCEPTED" value={myStats.accepted} sub={`${myStats.acceptRate}%`} color="emerald" />
           <KPI label="REJECTED" value={myStats.rejected} sub={`${myStats.rejectRate}%`} color="red" />
-          <KPI label="PENDING" value={myStats.pending} sub="por inspeccionar" color="amber" />
+          <KPI label="PENDING" value={myStats.pending} sub="pending inspection" color="amber" />
         </div>
         <div className="grid sm:grid-cols-2 gap-3">
           <Card title="ISOs EN MIS MANOS">
@@ -665,7 +884,7 @@ function DashboardView({ role, stats, data, visibleLogs, getWelderStats, current
             )}
           </Card>
           <Card title="MY TOOLS">
-            {myTools.length === 0 ? <div className="text-slate-400 text-sm">Sin herramientas assigned</div> : (
+            {myTools.length === 0 ? <div className="text-slate-400 text-sm">No tools assigned</div> : (
               <div className="space-y-1.5">
                 {myTools.map((t) => (
                   <div key={t.id} className="flex justify-between text-xs border-b border-slate-100 pb-1">
@@ -685,24 +904,24 @@ function DashboardView({ role, stats, data, visibleLogs, getWelderStats, current
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-black tracking-tight text-slate-900 mb-1">OVERVIEW</h2>
-        <p className="text-slate-500 text-xs tracking-wider font-semibold">ESTADO ACTUAL DE OPERACIONES</p>
+        <p className="text-slate-500 text-xs tracking-wider font-semibold">CURRENT OPERATIONS STATUS</p>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KPI label="WELDERS" value={data.welders.length} sub="active in plant" />
-        <KPI label="ISOs ACTIVOS" value={`${data.isos.filter((i) => i.welderId).length}/${data.isos.length}`} sub="assigned / total" color="blue" />
-        <KPI label="ACCEPTED" value={stats.accepted} sub={`${stats.acceptRate}% del total`} color="emerald" />
-        <KPI label="REJECTED" value={stats.rejected} sub={`${stats.rejectRate}% del total`} color="red" />
+        <KPI label="ACTIVE ISOs" value={`${data.isos.filter((i) => i.welderId).length}/${data.isos.length}`} sub="assigned / total" color="blue" />
+        <KPI label="ACCEPTED" value={stats.accepted} sub={`${stats.acceptRate}% of total`} color="emerald" />
+        <KPI label="REJECTED" value={stats.rejected} sub={`${stats.rejectRate}% of total`} color="red" />
       </div>
       <Card>
         <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
           <div>
-            <div className="text-xs text-slate-500 tracking-widest font-semibold">TOTAL DE WELDS</div>
+            <div className="text-xs text-slate-500 tracking-widest font-semibold">TOTAL WELDS</div>
             <div className="text-4xl font-black mt-1 text-slate-900">{stats.total}</div>
           </div>
           <div className="text-right text-xs space-y-0.5">
-            <div className="text-emerald-600 font-medium">● Accepteds: {stats.accepted}</div>
-            <div className="text-red-600 font-medium">● Rejecteds: {stats.rejected}</div>
-            <div className="text-amber-600 font-medium">● Sin inspeccionar: {stats.pending}</div>
+            <div className="text-emerald-600 font-medium">● Accepted: {stats.accepted}</div>
+            <div className="text-red-600 font-medium">● Rejected: {stats.rejected}</div>
+            <div className="text-amber-600 font-medium">● Not inspected: {stats.pending}</div>
           </div>
         </div>
         {stats.total > 0 && (
@@ -715,7 +934,7 @@ function DashboardView({ role, stats, data, visibleLogs, getWelderStats, current
       </Card>
       <Card title="WELDER PERFORMANCE" subtitle="% ACCEPTANCE" noPadding>
         {data.welders.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">No hay welderes registrados.</div>
+          <div className="p-8 text-center text-slate-400 text-sm">No welders registered yet.</div>
         ) : (
           <div className="divide-y divide-slate-100">
             {data.welders.map((w) => ({ ...w, stats: getWelderStats(w.id) })).sort((a, b) => b.stats.total - a.stats.total).map((w) => (
@@ -765,10 +984,10 @@ function WelderModal({ onClose, onSave, existing }) {
       <Field label="WELDER ID"><input value={welderId} onChange={(e) => setWelderId(e.target.value)} className={inputCls} /></Field>
       <Field label="PASSWORD (FOR LOGIN)">
         <input value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} placeholder="password" />
-        <div className="text-[10px] text-slate-500 mt-1">Esta es la contraseña que usará el welder para entrar a la app.</div>
+        <div className="text-[10px] text-slate-500 mt-1">This is the password the welder will use to log in.</div>
       </Field>
       {error && <div className="text-red-600 text-xs bg-red-50 border border-red-200 px-3 py-2 rounded">{error}</div>}
-      <button onClick={submit} className={btnPrimaryFull}>REGISTRAR</button>
+      <button onClick={submit} className={btnPrimaryFull}>REGISTER</button>
     </ModalShell>
   );
 }
@@ -780,9 +999,9 @@ function WeldersView({ welders, isos, tools, getStats, onAdd, onDelete }) {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-black tracking-tight text-slate-900">WELDERS</h2>
-          <p className="text-slate-500 text-xs tracking-wider font-semibold">{welders.length} REGISTRADOS</p>
+          <p className="text-slate-500 text-xs tracking-wider font-semibold">{welders.length} REGISTERED</p>
         </div>
-        <button onClick={() => setShowModal(true)} className={btnPrimary}><Plus size={14} /> NUEVO</button>
+        <button onClick={() => setShowModal(true)} className={btnPrimary}><Plus size={14} /> NEW</button>
       </div>
       {welders.length === 0 ? <EmptyState icon={Users} text="No welders yet. Add the first one." /> : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -831,9 +1050,9 @@ function IsoModal({ onClose, onSave, welders, systems, editing }) {
   const submit = () => {
     setError("");
     if (!number.trim()) { setError("ISO number is required"); return; }
-    if (!systemId) { setError("Selecciona un sistema (HPUR, CIPR, etc.). Si no existe, créalo primero en GESTIONAR SISTEMAS."); return; }
+    if (!systemId) { setError("Select a system (HPUR, CIPR, etc.). If it doesn't exist, create it first in MANAGE SYSTEMS."); return; }
     if (!size.trim()) { setError("Indica la medida del tubo (ej: 2\")"); return; }
-    if (!page.toString().trim()) { setError("Indica el número de página"); return; }
+    if (!page.toString().trim()) { setError("Enter page number"); return; }
     const sizeFormatted = size.trim().endsWith('"') ? size.trim() : size.trim() + '"';
     onSave({
       number: number.trim().toUpperCase(),
@@ -853,10 +1072,10 @@ function IsoModal({ onClose, onSave, welders, systems, editing }) {
           <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
           <div>
             <div className="font-bold mb-1">No hay sistemas creados</div>
-            <div className="text-xs">Antes de crear un ISO, primero debes crear al menos un sistema (HPUR, CIPR, RO, etc.) usando el botón <strong>GESTIONAR SISTEMAS</strong>.</div>
+            <div className="text-xs">Before creating an ISO, you must first create at least one system (HPUR, CIPR, RO, etc.) using the <strong>MANAGE SYSTEMS</strong>.</div>
           </div>
         </div>
-        <button onClick={onClose} className="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 text-xs tracking-widest rounded transition-colors">CERRAR</button>
+        <button onClick={onClose} className="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 text-xs tracking-widest rounded transition-colors">CLOSE</button>
       </ModalShell>
     );
   }
@@ -866,7 +1085,7 @@ function IsoModal({ onClose, onSave, welders, systems, editing }) {
       <Field label="ISO NUMBER">
         <input value={number} onChange={(e) => setNumber(e.target.value)} className={inputCls} autoFocus placeholder="2.00-HPUR-SS02-3456008-F4-34" />
       </Field>
-      <Field label="DESCRIPCIÓN (OPCIONAL)">
+      <Field label="DESCRIPTION (OPTIONAL)">
         <input value={description} onChange={(e) => setDescription(e.target.value)} className={inputCls} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
@@ -880,17 +1099,17 @@ function IsoModal({ onClose, onSave, welders, systems, editing }) {
           <input value={size} onChange={(e) => setSize(e.target.value)} className={inputCls} placeholder='2"' />
         </Field>
       </div>
-      <Field label="NÚMERO DE PÁGINA *">
+      <Field label="PAGE NUMBER *">
         <input type="number" value={page} onChange={(e) => setPage(e.target.value)} className={inputCls} placeholder="34" min="1" />
       </Field>
-      <Field label="ASIGNAR A WELDER (OPCIONAL)">
+      <Field label="ASSIGN A WELDER (OPCIONAL)">
         <select value={welderId} onChange={(e) => setWelderId(e.target.value)} className={selectCls}>
-          <option value="">— Sin asignar —</option>
+          <option value="">— Unassigned —</option>
           {welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
         </select>
       </Field>
       {error && <div className="text-red-600 text-xs bg-red-50 border border-red-200 px-3 py-2 rounded">{error}</div>}
-      <button onClick={submit} className={btnPrimaryFull}>{editing ? "GUARDAR CAMBIOS" : "REGISTRAR"}</button>
+      <button onClick={submit} className={btnPrimaryFull}>{editing ? "SAVE CAMBIOS" : "REGISTER"}</button>
     </ModalShell>
   );
 }
@@ -911,11 +1130,11 @@ function SystemsModal({ onClose, systems, onAdd, onDelete }) {
   };
 
   return (
-    <ModalShell title="GESTIONAR SISTEMAS" onClose={onClose}>
+    <ModalShell title="MANAGE SYSTEMS" onClose={onClose}>
       <div className="bg-blue-50 border border-blue-100 p-3 rounded text-xs text-slate-600">
-        Los sistemas (ej: <strong>HPUR</strong>, <strong>CIPR</strong>, <strong>RO</strong>, <strong>CIPS</strong>) varían por proyecto. Crea aquí los que necesites.
+        Systems (ex: <strong>HPUR</strong>, <strong>CIPR</strong>, <strong>RO</strong>, <strong>CIPS</strong>) vary per project. Create here the ones you neeesites.
       </div>
-      <Field label="NUEVO SISTEMA">
+      <Field label="NEW SISTEMA">
         <div className="flex gap-2">
           <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} className={inputCls} placeholder="Ej: HPUR, CIPR, RO..." autoFocus />
           <button onClick={submit} className="bg-blue-700 hover:bg-blue-800 text-white px-4 text-xs font-bold tracking-widest rounded transition-colors flex-shrink-0">
@@ -925,9 +1144,9 @@ function SystemsModal({ onClose, systems, onAdd, onDelete }) {
       </Field>
       {error && <div className="text-red-600 text-xs bg-red-50 border border-red-200 px-3 py-2 rounded">{error}</div>}
       <div>
-        <div className="text-xs text-slate-600 tracking-wider font-semibold mb-2">SISTEMAS REGISTRADOS ({systems.length})</div>
+        <div className="text-xs text-slate-600 tracking-wider font-semibold mb-2">SYSTEMS REGISTERED ({systems.length})</div>
         {systems.length === 0 ? (
-          <div className="text-slate-400 text-sm italic text-center py-4">Aún no has creado sistemas.</div>
+          <div className="text-slate-400 text-sm italic text-center py-4">No systems created yet.</div>
         ) : (
           <div className="space-y-1.5">
             {systems.map((s) => (
@@ -941,7 +1160,7 @@ function SystemsModal({ onClose, systems, onAdd, onDelete }) {
           </div>
         )}
       </div>
-      <button onClick={onClose} className="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 text-xs tracking-widest rounded transition-colors">CERRAR</button>
+      <button onClick={onClose} className="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 text-xs tracking-widest rounded transition-colors">CLOSE</button>
     </ModalShell>
   );
 }
@@ -1008,14 +1227,14 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
       <td className="px-5 py-3 text-slate-600 text-xs hidden md:table-cell">{iso.description || "—"}</td>
       <td className="px-5 py-3">
         <select value={iso.welderId || ""} onChange={(e) => onAssign(iso.id, e.target.value || null)} className={selectCls + " max-w-[180px]"}>
-          <option value="">— Sin asignar —</option>
+          <option value="">— Unassigned —</option>
           {welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
         </select>
       </td>
       <td className="px-5 py-3 text-right whitespace-nowrap">
-        <button onClick={() => setViewingIso(iso)} className="text-slate-400 hover:text-emerald-600 p-1 rounded hover:bg-emerald-50 mr-1" title="Ver ISO"><FileImage size={14} /></button>
-        <button onClick={() => setEditingIso(iso)} className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 mr-1" title="Editar"><Edit2 size={14} /></button>
-        <button onClick={() => onDelete(iso.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50" title="Borrar"><Trash2 size={14} /></button>
+        <button onClick={() => setViewingIso(iso)} className="text-slate-400 hover:text-emerald-600 p-1 rounded hover:bg-emerald-50 mr-1" title="View ISO"><FileImage size={14} /></button>
+        <button onClick={() => setEditingIso(iso)} className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 mr-1" title="Edit"><Edit2 size={14} /></button>
+        <button onClick={() => onDelete(iso.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50" title="Delete"><Trash2 size={14} /></button>
       </td>
     </tr>
   );
@@ -1024,14 +1243,14 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
     <div className="space-y-4">
       <div className="flex justify-between items-center flex-wrap gap-2">
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-slate-900">ISOMÉTRICOS</h2>
-          <p className="text-slate-500 text-xs tracking-wider font-semibold">{isos.length} TOTAL · {isos.filter((i) => i.welderId).length} ASIGNADOS · {unassignedIsos.length} SIN ASIGNAR · {systems.length} SISTEMAS</p>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900">ISOMETRICS</h2>
+          <p className="text-slate-500 text-xs tracking-wider font-semibold">{isos.length} TOTAL · {isos.filter((i) => i.welderId).length} ASSIGNED · {unassignedIsos.length} UNASSIGNED · {systems.length} SYSTEMS</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setShowSystemsModal(true)} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 text-xs font-bold tracking-widest flex items-center gap-2 transition-colors rounded shadow-sm">
-            <Layers size={14} /> SISTEMAS
+            <Layers size={14} /> SYSTEMS
           </button>
-          <button onClick={() => setShowModal(true)} className={btnPrimary}><Plus size={14} /> NUEVO ISO</button>
+          <button onClick={() => setShowModal(true)} className={btnPrimary}><Plus size={14} /> NEW ISO</button>
         </div>
       </div>
 
@@ -1040,7 +1259,7 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ISO..." className={inputCls + " pl-9"} />
       </div>
 
-      {isos.length === 0 ? <EmptyState icon={FileText} text="No hay ISOs registrados." /> : filteredIsos.length === 0 ? (
+      {isos.length === 0 ? <EmptyState icon={FileText} text="No ISOs registered." /> : filteredIsos.length === 0 ? (
         <div className="bg-white border border-dashed border-slate-300 rounded-lg p-8 text-center text-slate-400 text-sm">
           No se encontraron ISOs con "{search}"
         </div>
@@ -1078,9 +1297,9 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
                         <thead className="bg-slate-50 text-xs tracking-widest text-slate-600">
                           <tr>
                             <th className="text-left px-5 py-2 font-bold">ISO</th>
-                            <th className="text-left px-5 py-2 font-bold">PÁG.</th>
-                            <th className="text-left px-5 py-2 font-bold hidden md:table-cell">DESCRIPCIÓN</th>
-                            <th className="text-left px-5 py-2 font-bold">REASIGNAR</th>
+                            <th className="text-left px-5 py-2 font-bold">PG.</th>
+                            <th className="text-left px-5 py-2 font-bold hidden md:table-cell">DESCRIPTION</th>
+                            <th className="text-left px-5 py-2 font-bold">REASSIGN</th>
                             <th className="px-5 py-2"></th>
                           </tr>
                         </thead>
@@ -1107,8 +1326,8 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
                     <AlertCircle size={18} />
                   </div>
                   <div className="text-left">
-                    <div className="font-bold text-amber-900">SIN ASIGNAR</div>
-                    <div className="text-xs text-amber-600">Clasificados por sistema · medida · página</div>
+                    <div className="font-bold text-amber-900">UNASSIGNED</div>
+                    <div className="text-xs text-amber-600">Classified by system · size · page</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -1182,9 +1401,9 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
                                         <thead className="bg-slate-50 text-[10px] tracking-widest text-slate-600">
                                           <tr>
                                             <th className="text-left px-3 py-1.5 font-bold">ISO</th>
-                                            <th className="text-left px-3 py-1.5 font-bold">PÁG.</th>
+                                            <th className="text-left px-3 py-1.5 font-bold">PG.</th>
                                             <th className="text-left px-3 py-1.5 font-bold hidden md:table-cell">DESC.</th>
-                                            <th className="text-left px-3 py-1.5 font-bold">ASIGNAR A</th>
+                                            <th className="text-left px-3 py-1.5 font-bold">ASSIGN A</th>
                                             <th className="px-3 py-1.5"></th>
                                           </tr>
                                         </thead>
@@ -1196,14 +1415,14 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
                                               <td className="px-3 py-2 text-slate-600 text-xs hidden md:table-cell">{iso.description || "—"}</td>
                                               <td className="px-3 py-2">
                                                 <select value={iso.welderId || ""} onChange={(e) => onAssign(iso.id, e.target.value || null)} className={selectCls + " max-w-[160px] text-xs"}>
-                                                  <option value="">— Sin asignar —</option>
+                                                  <option value="">— Unassigned —</option>
                                                   {welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
                                                 </select>
                                               </td>
                                               <td className="px-3 py-2 text-right whitespace-nowrap">
-                                                <button onClick={() => setViewingIso(iso)} className="text-slate-400 hover:text-emerald-600 p-1 rounded hover:bg-emerald-50 mr-1" title="Ver ISO"><FileImage size={12} /></button>
-                                                <button onClick={() => setEditingIso(iso)} className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 mr-1" title="Editar"><Edit2 size={12} /></button>
-                                                <button onClick={() => onDelete(iso.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50" title="Borrar"><Trash2 size={12} /></button>
+                                                <button onClick={() => setViewingIso(iso)} className="text-slate-400 hover:text-emerald-600 p-1 rounded hover:bg-emerald-50 mr-1" title="View ISO"><FileImage size={12} /></button>
+                                                <button onClick={() => setEditingIso(iso)} className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 mr-1" title="Edit"><Edit2 size={12} /></button>
+                                                <button onClick={() => onDelete(iso.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50" title="Delete"><Trash2 size={12} /></button>
                                               </td>
                                             </tr>
                                           ))}
@@ -1232,8 +1451,8 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
                             <AlertCircle size={16} />
                           </div>
                           <div className="text-left">
-                            <div className="font-bold text-orange-900 text-sm">SIN CLASIFICAR</div>
-                            <div className="text-[10px] text-orange-600">ISOs viejos sin sistema/medida — edítalos</div>
+                            <div className="font-bold text-orange-900 text-sm">UNCLASSIFIED</div>
+                            <div className="text-[10px] text-orange-600">Old ISOs without system/size — edit them</div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1261,11 +1480,11 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
                                   <td className="px-3 py-2 text-slate-600 text-xs hidden md:table-cell">{iso.description || "—"}</td>
                                   <td className="px-3 py-2">
                                     <button onClick={() => setEditingIso(iso)} className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 text-[10px] font-bold tracking-widest rounded transition-colors flex items-center gap-1">
-                                      <Edit2 size={10} /> CLASIFICAR
+                                      <Edit2 size={10} /> CLASSIFY
                                     </button>
                                   </td>
                                   <td className="px-3 py-2 text-right whitespace-nowrap">
-                                    <button onClick={() => setViewingIso(iso)} className="text-slate-400 hover:text-emerald-600 p-1 rounded hover:bg-emerald-50 mr-1" title="Ver ISO"><FileImage size={12} /></button>
+                                    <button onClick={() => setViewingIso(iso)} className="text-slate-400 hover:text-emerald-600 p-1 rounded hover:bg-emerald-50 mr-1" title="View ISO"><FileImage size={12} /></button>
                                     <button onClick={() => onDelete(iso.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"><Trash2 size={12} /></button>
                                   </td>
                                 </tr>
@@ -1306,7 +1525,7 @@ function LogModal({ onClose, onSave, welders, editing, role, currentUser }) {
   };
 
   return (
-    <ModalShell title={editing ? "EDITAR DAILY LOG" : "NUEVO DAILY LOG"} onClose={onClose}>
+    <ModalShell title={editing ? "EDITAR DAILY LOG" : "NEW DAILY LOG"} onClose={onClose}>
       {role !== "welder" && (
         <Field label="WELDER">
           <select value={welderId} onChange={(e) => setWelderId(e.target.value)} className={selectCls} autoFocus>
@@ -1454,8 +1673,8 @@ function generateDailyLogPDF(log, welder) {
   <div class="print-bar no-print">
     <div style="font-weight:700;letter-spacing:2px;">📄 DAILY WELD LOG — ${welder?.name || ''} — ${dateShort}</div>
     <div>
-      <button class="print-btn" onclick="window.print()">🖨️ IMPRIMIR / GUARDAR PDF</button>
-      <button class="close-btn" onclick="window.close()">✕ CERRAR</button>
+      <button class="print-btn" onclick="window.print()">🖨️ PRINT / SAVE PDF</button>
+      <button class="close-btn" onclick="window.close()">✕ CLOSE</button>
     </div>
   </div>
 
@@ -1550,7 +1769,7 @@ function generateDailyLogPDF(log, welder) {
   // Open in new window
   const win = window.open('', '_blank', 'width=1100,height=800');
   if (!win) {
-    alert("Permite ventanas emergentes (popups) en tu navegador para generar el PDF.");
+    alert("Allow popups in your browser to generate PDF.");
     return;
   }
   win.document.write(html);
@@ -1641,17 +1860,17 @@ function LogsView({ role, currentUser, logs, welders, isos, inspections, onSaveL
                                 <button
                                   onClick={() => generateDailyLogPDF(log, welder)}
                                   disabled={log.entries.length === 0}
-                                  title="Exportar Daily Weld Log a PDF"
+                                  title="Export Daily Weld Log to PDF"
                                   className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white text-[10px] font-bold tracking-widest px-2.5 py-1 rounded ml-2 flex items-center gap-1 transition-colors"
                                 >
-                                  <Download size={11} /> EXPORTAR PDF
+                                  <Download size={11} /> EXPORT PDF
                                 </button>
                                 <button onClick={() => { setEditingLog(log); setShowLogModal(true); }} className="text-slate-500 hover:text-blue-700 p-1 hover:bg-blue-50 rounded ml-1"><Edit2 size={12} /></button>
                                 <button onClick={() => onDeleteLog(log.id)} className="text-slate-500 hover:text-red-600 p-1 hover:bg-red-50 rounded"><Trash2 size={12} /></button>
                               </div>
                             </div>
                             {log.entries.length === 0 ? (
-                              <div className="px-5 py-4 text-sm text-slate-400 italic">Sin welds en este log.</div>
+                              <div className="px-5 py-4 text-sm text-slate-400 italic">No welds in this log.</div>
                             ) : (
                               <div className="overflow-x-auto">
                                 <table className="w-full text-xs">
@@ -1775,7 +1994,7 @@ function LogsView({ role, currentUser, logs, welders, isos, inspections, onSaveL
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {log.entries.length === 0 ? (
-                        <tr><td colSpan={11} className="px-4 py-6 text-center text-slate-400">Sin welds en este log.</td></tr>
+                        <tr><td colSpan={11} className="px-4 py-6 text-center text-slate-400">No welds in this log.</td></tr>
                       ) : log.entries.map((e) => {
                         const insp = inspections.find((i) => i.weldRef === `${log.id}-${e.id}`);
                         return (
@@ -1869,22 +2088,22 @@ function InspectModal({ entry, welder, onClose, onSave }) {
           <select value={reason} onChange={(e) => setReason(e.target.value)} className={selectCls}>
             <option value="">— Select motivo —</option>
             <option>Porosidad</option>
-            <option>Falta de fusión</option>
-            <option>Falta de penetración</option>
-            <option>Inclusión de escoria</option>
+            <option>Lack of fusion</option>
+            <option>Lack of penetration</option>
+            <option>Slag inclusion</option>
             <option>Socavadura (undercut)</option>
             <option>Grieta</option>
             <option>Mordedura</option>
             <option>Sobremonta excesiva</option>
-            <option>Desalineación</option>
-            <option>Color/oxidación</option>
+            <option>Misalignment</option>
+            <option>Color/oxidation</option>
             <option>Otro</option>
           </select>
         </Field>
       )}
       <Field label="COMMENTS (OPTIONAL)"><textarea value={comments} onChange={(e) => setComments(e.target.value)} className={inputCls + " resize-none"} rows={2} placeholder="Additional notes..." /></Field>
       <Field label="QC INITIALS"><input value={qcInitial} onChange={(e) => setQcInitial(e.target.value)} className={inputCls}  maxLength={5} /></Field>
-      <button onClick={submit} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 text-xs tracking-widest rounded transition-colors shadow-sm">REGISTRAR INSPECCIÓN</button>
+      <button onClick={submit} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 text-xs tracking-widest rounded transition-colors shadow-sm">REGISTER INSPECTION</button>
     </ModalShell>
   );
 }
@@ -1940,21 +2159,21 @@ function InspectionsView({ role, logs, welders, inspections, onAdd, onDelete }) 
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-black tracking-tight text-slate-900">CONTROL DE CALIDAD</h2>
+        <h2 className="text-2xl font-black tracking-tight text-slate-900">QUALITY CONTROL</h2>
         <p className="text-slate-500 text-xs tracking-wider font-semibold">{pending.length} PENDING · {inspections.filter((i) => i.status === "rejected").length} REJECTED · {inspections.filter((i) => i.status === "accepted").length} ACCEPTED</p>
       </div>
       {role === "qc" && (
         <div className="bg-cyan-50 border border-cyan-200 px-4 py-3 text-xs text-cyan-800 flex items-start gap-2 rounded">
           <Eye size={14} className="mt-0.5 flex-shrink-0" />
-          <div>Como inspector QC, eres el único que puede aprobar o rechazar welds.</div>
+          <div>As QC inspector, you are the only one who can approve or reject welds.</div>
         </div>
       )}
 
       {/* PENDING SECTION */}
       <div className="space-y-3">
-        <h3 className="text-sm font-bold tracking-widest text-blue-700">PENDING DE INSPECCIÓN ({pending.length})</h3>
+        <h3 className="text-sm font-bold tracking-widest text-blue-700">PENDING INSPECTION ({pending.length})</h3>
         {pending.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm">No hay welds pending.</div>
+          <div className="bg-white border border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm">No welds pending.</div>
         ) : (
           <Card noPadding>
             <div className="overflow-x-auto">
@@ -1981,7 +2200,7 @@ function InspectionsView({ role, logs, welders, inspections, onAdd, onDelete }) 
                         <td className="px-3 py-2 font-mono">{e.system}</td>
                         {role === "qc" && (
                           <td className="px-3 py-2 text-right">
-                            <button onClick={() => setShowInspectModal(e)} className="bg-cyan-600 hover:bg-cyan-700 text-white px-3 py-1 text-xs font-bold tracking-widest rounded transition-colors">INSPECCIONAR</button>
+                            <button onClick={() => setShowInspectModal(e)} className="bg-cyan-600 hover:bg-cyan-700 text-white px-3 py-1 text-xs font-bold tracking-widest rounded transition-colors">INSPECT</button>
                           </td>
                         )}
                       </tr>
@@ -1996,9 +2215,9 @@ function InspectionsView({ role, logs, welders, inspections, onAdd, onDelete }) 
 
       {/* INSPECTED SECTION — grouped by welder → date */}
       <div className="space-y-3">
-        <h3 className="text-sm font-bold tracking-widest text-slate-700">INSPECCIONES REALIZADAS ({inspections.length})</h3>
+        <h3 className="text-sm font-bold tracking-widest text-slate-700">COMPLETED INSPECTIONS ({inspections.length})</h3>
         {inspections.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm">Sin inspections registradas.</div>
+          <div className="bg-white border border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm">No inspections registered.</div>
         ) : (
           <div className="space-y-2">
             {groupedInspections.map(({ welder: w, dates, totalCount, acceptedCount, rejectedCount }) => {
@@ -2020,7 +2239,7 @@ function InspectionsView({ role, logs, welders, inspections, onAdd, onDelete }) 
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="bg-cyan-50 border border-cyan-200 text-cyan-700 text-xs font-bold px-2.5 py-1 rounded-full">
-                        {totalCount} {totalCount === 1 ? "inspección" : "inspecciones"}
+                        {totalCount} {totalCount === 1 ? "inspection" : "inspections"}
                       </span>
                       {acceptedCount > 0 && (
                         <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold px-2 py-1 rounded-full">
@@ -2075,7 +2294,7 @@ function InspectionsView({ role, logs, welders, inspections, onAdd, onDelete }) 
                                             <span className={`text-xs font-bold tracking-widest px-2 py-0.5 rounded ${insp.status === "accepted" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
                                               {insp.status === "accepted" ? "✓ ACCEPTED" : "✗ REJECTED"}
                                             </span>
-                                            <span className="text-xs text-slate-500">Inspeccionado: {new Date(insp.date).toLocaleDateString("en-US")}</span>
+                                            <span className="text-xs text-slate-500">Inspected: {new Date(insp.date).toLocaleDateString("en-US")}</span>
                                             <span className="text-xs text-cyan-700 font-semibold">QC: {insp.qcInitial}</span>
                                           </div>
                                           <div className="text-xs">
@@ -2110,8 +2329,8 @@ function InspectionsView({ role, logs, welders, inspections, onAdd, onDelete }) 
               <div className="bg-white border border-amber-200 rounded-lg shadow-sm overflow-hidden">
                 <div className="px-5 py-3 bg-amber-50 border-b border-amber-200 flex items-center gap-2">
                   <AlertCircle size={14} className="text-amber-600" />
-                  <span className="text-xs font-bold tracking-widest text-amber-800">INSPECCIONES SIN WELD ({orphanInspections.length})</span>
-                  <span className="text-[10px] text-amber-600 italic">— el weld original fue eliminado</span>
+                  <span className="text-xs font-bold tracking-widest text-amber-800">INSPECTIONS WITHOUT WELD ({orphanInspections.length})</span>
+                  <span className="text-[10px] text-amber-600 italic">— the original weld was deleted</span>
                 </div>
                 <div className="divide-y divide-slate-100">
                   {orphanInspections.map((insp) => (
@@ -2125,7 +2344,7 @@ function InspectionsView({ role, logs, welders, inspections, onAdd, onDelete }) 
                             <span className="text-xs text-slate-500">{new Date(insp.date).toLocaleDateString("en-US")}</span>
                             <span className="text-xs text-cyan-700 font-semibold">QC: {insp.qcInitial}</span>
                           </div>
-                          <div className="text-xs text-slate-400">Soldadura eliminada</div>
+                          <div className="text-xs text-slate-400">Weld deleted</div>
                         </div>
                         {role === "qc" && <button onClick={() => onDelete(insp.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={12} /></button>}
                       </div>
@@ -2153,11 +2372,11 @@ function ToolModal({ onClose, onSave, welders }) {
       <Field label="SERIAL NUMBER"><input value={serial} onChange={(e) => setSerial(e.target.value)} className={inputCls} /></Field>
       <Field label="ASSIGN TO WELDER">
         <select value={welderId} onChange={(e) => setWelderId(e.target.value)} className={selectCls}>
-          <option value="">— Sin asignar —</option>
+          <option value="">— Unassigned —</option>
           {welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
         </select>
       </Field>
-      <button onClick={submit} className={btnPrimaryFull}>REGISTRAR</button>
+      <button onClick={submit} className={btnPrimaryFull}>REGISTER</button>
     </ModalShell>
   );
 }
@@ -2186,9 +2405,9 @@ function ToolsView({ role, currentUser, tools, welders, onAdd, onDelete, onReass
       <div className="space-y-4">
         <div>
           <h2 className="text-2xl font-black tracking-tight text-slate-900">MY TOOLS</h2>
-          <p className="text-slate-500 text-xs tracking-wider font-semibold">{visibleTools.length} REGISTRADAS</p>
+          <p className="text-slate-500 text-xs tracking-wider font-semibold">{visibleTools.length} REGISTERED</p>
         </div>
-        {visibleTools.length === 0 ? <EmptyState icon={Wrench} text="No tienes herramientas assigned." /> : (
+        {visibleTools.length === 0 ? <EmptyState icon={Wrench} text="No tienes tools assigned." /> : (
           <Card noPadding>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -2218,13 +2437,13 @@ function ToolsView({ role, currentUser, tools, welders, onAdd, onDelete, onReass
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-slate-900">HERRAMIENTAS</h2>
-          <p className="text-slate-500 text-xs tracking-wider font-semibold">{visibleTools.length} REGISTRADAS · {welders.length} SOLDADORES</p>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900">TOOLS</h2>
+          <p className="text-slate-500 text-xs tracking-wider font-semibold">{visibleTools.length} REGISTERED · {welders.length} WELDERS</p>
         </div>
-        {canManage && <button onClick={() => setShowModal(true)} className={btnPrimary}><Plus size={14} /> NUEVA</button>}
+        {canManage && <button onClick={() => setShowModal(true)} className={btnPrimary}><Plus size={14} /> NEW</button>}
       </div>
 
-      {visibleTools.length === 0 ? <EmptyState icon={Wrench} text="No hay herramientas registradas." /> : (
+      {visibleTools.length === 0 ? <EmptyState icon={Wrench} text="No tools registered." /> : (
         <div className="space-y-2">
           {groupedTools.map(({ welder, tools: welderTools }) => {
             const isExpanded = expandedWelders[welder.id];
@@ -2245,7 +2464,7 @@ function ToolsView({ role, currentUser, tools, welders, onAdd, onDelete, onReass
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">
-                      {welderTools.length} {welderTools.length === 1 ? "herramienta" : "herramientas"}
+                      {welderTools.length} {welderTools.length === 1 ? "tool" : "tools"}
                     </span>
                     {isExpanded ? <ChevronDown size={18} className="text-slate-400" /> : <ChevronRight size={18} className="text-slate-400" />}
                   </div>
@@ -2254,14 +2473,14 @@ function ToolsView({ role, currentUser, tools, welders, onAdd, onDelete, onReass
                 {isExpanded && (
                   <div className="border-t border-slate-100">
                     {welderTools.length === 0 ? (
-                      <div className="px-5 py-4 text-sm text-slate-400 italic">Sin herramientas asignadas a este soldador.</div>
+                      <div className="px-5 py-4 text-sm text-slate-400 italic">No tools asignadas a este soldador.</div>
                     ) : (
                       <table className="w-full text-sm">
                         <thead className="bg-slate-50 text-xs tracking-widest text-slate-600">
                           <tr>
                             <th className="text-left px-5 py-2 font-bold">HERRAMIENTA</th>
                             <th className="text-left px-5 py-2 font-bold">SERIAL</th>
-                            {canManage && <th className="text-left px-5 py-2 font-bold">REASIGNAR</th>}
+                            {canManage && <th className="text-left px-5 py-2 font-bold">REASSIGN</th>}
                             {canManage && <th className="px-5 py-2"></th>}
                           </tr>
                         </thead>
@@ -2273,7 +2492,7 @@ function ToolsView({ role, currentUser, tools, welders, onAdd, onDelete, onReass
                               {canManage && (
                                 <td className="px-5 py-3">
                                   <select value={t.welderId || ""} onChange={(e) => onReassign(t.id, e.target.value || null)} className={selectCls + " max-w-[180px]"}>
-                                    <option value="">— Sin asignar —</option>
+                                    <option value="">— Unassigned —</option>
                                     {welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
                                   </select>
                                 </td>
@@ -2305,13 +2524,13 @@ function ToolsView({ role, currentUser, tools, welders, onAdd, onDelete, onReass
                     <AlertCircle size={18} />
                   </div>
                   <div className="text-left">
-                    <div className="font-bold text-amber-900">SIN ASIGNAR</div>
+                    <div className="font-bold text-amber-900">UNASSIGNED</div>
                     <div className="text-xs text-amber-600">Herramientas sin soldador</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="bg-amber-100 border border-amber-300 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">
-                    {unassignedTools.length} {unassignedTools.length === 1 ? "herramienta" : "herramientas"}
+                    {unassignedTools.length} {unassignedTools.length === 1 ? "tool" : "tools"}
                   </span>
                   {expandedWelders["__unassigned"] ? <ChevronDown size={18} className="text-amber-600" /> : <ChevronRight size={18} className="text-amber-600" />}
                 </div>
@@ -2323,7 +2542,7 @@ function ToolsView({ role, currentUser, tools, welders, onAdd, onDelete, onReass
                       <tr>
                         <th className="text-left px-5 py-2 font-bold">HERRAMIENTA</th>
                         <th className="text-left px-5 py-2 font-bold">SERIAL</th>
-                        {canManage && <th className="text-left px-5 py-2 font-bold">ASIGNAR A</th>}
+                        {canManage && <th className="text-left px-5 py-2 font-bold">ASSIGN A</th>}
                         {canManage && <th className="px-5 py-2"></th>}
                       </tr>
                     </thead>
@@ -2335,7 +2554,7 @@ function ToolsView({ role, currentUser, tools, welders, onAdd, onDelete, onReass
                           {canManage && (
                             <td className="px-5 py-3">
                               <select value={t.welderId || ""} onChange={(e) => onReassign(t.id, e.target.value || null)} className={selectCls + " max-w-[180px]"}>
-                                <option value="">— Sin asignar —</option>
+                                <option value="">— Unassigned —</option>
                                 {welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
                               </select>
                             </td>
@@ -2438,53 +2657,53 @@ function ChartsView({ data, getEntryRef }) {
     { name: "Pending", value: pending, color: "#f59e0b" },
   ].filter((d) => d.value > 0);
 
-  const dateRangeLabels = { all: "TODO EL TIEMPO", week: "ÚLTIMA SEMANA", month: "ÚLTIMO MES", quarter: "ÚLTIMOS 90 DÍAS" };
+  const dateRangeLabels = { all: "ALL TIME", week: "LAST WEEK", month: "LAST MONTH", quarter: "LAST 90 DAYS" };
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-black tracking-tight text-slate-900 mb-1">CHARTS &amp; ANALYTICS</h2>
-        <p className="text-slate-500 text-xs tracking-wider font-semibold">PROGRESO Y RENDIMIENTO DE SOLDADURAS</p>
+        <p className="text-slate-500 text-xs tracking-wider font-semibold">WELD PROGRESS AND PERFORMANCE</p>
       </div>
 
       {/* FILTERS */}
       <Card>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="RANGO DE FECHA">
+          <Field label="DATE RANGE">
             <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className={selectCls}>
-              <option value="all">Todo el tiempo</option>
-              <option value="week">Última semana</option>
-              <option value="month">Último mes</option>
-              <option value="quarter">Últimos 90 días</option>
+              <option value="all">All time</option>
+              <option value="week">Last week</option>
+              <option value="month">Last month</option>
+              <option value="quarter">Last 90 days</option>
             </select>
           </Field>
-          <Field label="SOLDADOR">
+          <Field label="WELDER">
             <select value={selectedWelder} onChange={(e) => setSelectedWelder(e.target.value)} className={selectCls}>
-              <option value="all">Todos los soldadores</option>
+              <option value="all">All welders</option>
               {data.welders.map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
             </select>
           </Field>
         </div>
         <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
           <Activity size={12} />
-          <span className="tracking-widest font-semibold">VIENDO: {dateRangeLabels[dateRange]} {selectedWelder !== "all" ? "· " + (data.welders.find(w => w.id === selectedWelder)?.name || "") : ""}</span>
+          <span className="tracking-widest font-semibold">VIEWING: {dateRangeLabels[dateRange]} {selectedWelder !== "all" ? "· " + (data.welders.find(w => w.id === selectedWelder)?.name || "") : ""}</span>
         </div>
       </Card>
 
       {/* KPI CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KPI label="TOTAL WELDS" value={total} sub="en el período" color="blue" />
-        <KPI label="ACCEPTED" value={accepted} sub={`${acceptRate}% del total`} color="emerald" />
-        <KPI label="REJECTED" value={rejected} sub={`${rejectRate}% del total`} color="red" />
-        <KPI label="PENDING" value={pending} sub="por inspeccionar" color="amber" />
+        <KPI label="TOTAL WELDS" value={total} sub="in the period" color="blue" />
+        <KPI label="ACCEPTED" value={accepted} sub={`${acceptRate}% of total`} color="emerald" />
+        <KPI label="REJECTED" value={rejected} sub={`${rejectRate}% of total`} color="red" />
+        <KPI label="PENDING" value={pending} sub="pending inspection" color="amber" />
       </div>
 
       {total === 0 ? (
-        <EmptyState icon={BarChart3} text="No hay datos en el rango seleccionado. Cambia los filtros o registra welds." />
+        <EmptyState icon={BarChart3} text="No data in selected range. Change filters or register welds." />
       ) : (
         <>
           {/* TIMELINE LINE CHART */}
-          <Card title="EVOLUCIÓN EN EL TIEMPO" subtitle="welds por día">
+          <Card title="EVOLUTION OVER TIME" subtitle="welds per day">
             <div className="w-full" style={{ height: 320 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={timelineData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
@@ -2507,7 +2726,7 @@ function ChartsView({ data, getEntryRef }) {
           {/* GRID: BAR + PIE */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* BAR CHART BY WELDER */}
-            <Card title="POR SOLDADOR" subtitle="ranking de welds">
+            <Card title="POR WELDER" subtitle="ranking de welds">
               {welderData.length === 0 ? (
                 <div className="text-center text-slate-400 text-sm py-8">No hay datos por soldador.</div>
               ) : (
@@ -2536,7 +2755,7 @@ function ChartsView({ data, getEntryRef }) {
             </Card>
 
             {/* PIE CHART */}
-            <Card title="DISTRIBUCIÓN GLOBAL" subtitle="% del total">
+            <Card title="GLOBAL DISTRIBUTION" subtitle="% of total">
               <div className="w-full" style={{ height: 320 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -2569,17 +2788,17 @@ function ChartsView({ data, getEntryRef }) {
 
           {/* WELDER PERFORMANCE TABLE */}
           {welderData.length > 0 && (
-            <Card title="DESEMPEÑO POR SOLDADOR" subtitle="% de aceptación" noPadding>
+            <Card title="WELDER PERFORMANCE" subtitle="% acceptance" noPadding>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 text-xs tracking-widest text-slate-600">
                     <tr>
-                      <th className="text-left px-4 py-3 font-bold">SOLDADOR</th>
+                      <th className="text-left px-4 py-3 font-bold">WELDER</th>
                       <th className="text-right px-4 py-3 font-bold">TOTAL</th>
                       <th className="text-right px-4 py-3 font-bold">✓ OK</th>
                       <th className="text-right px-4 py-3 font-bold">✗ RX</th>
                       <th className="text-right px-4 py-3 font-bold">PENDING</th>
-                      <th className="text-right px-4 py-3 font-bold">% ACEPTACIÓN</th>
+                      <th className="text-right px-4 py-3 font-bold">% ACCEPTANCE</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -2633,7 +2852,7 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
     const todayCoupons = coupons.filter((c) => c.welderId === welderId && c.date === todayStr);
 
     // Has a coupon today? At least morning is covered
-    if (todayCoupons.length === 0) return "INICIO DE TURNO";
+    if (todayCoupons.length === 0) return "START OF SHIFT";
 
     const lastWeld = getLastWeldForWelder(welderId);
     if (!lastWeld) return null; // No welds yet today, but already has morning coupon
@@ -2642,13 +2861,13 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
     const lastCoupon = [...todayCoupons].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
 
     if (lastCoupon.size && lastWeld.size && lastCoupon.size !== lastWeld.size) {
-      return `CAMBIO DE DIÁMETRO (${lastCoupon.size}" → ${lastWeld.size}")`;
+      return `DIAMETER CHANGE (${lastCoupon.size}" → ${lastWeld.size}")`;
     }
     if (lastCoupon.machine && lastWeld.machine && lastCoupon.machine !== lastWeld.machine) {
-      return `CAMBIO DE MÁQUINA`;
+      return `MACHINE CHANGE`;
     }
     if (lastCoupon.head && lastWeld.head && lastCoupon.head !== lastWeld.head) {
-      return `CAMBIO DE HEAD`;
+      return `HEAD CHANGE`;
     }
     return null;
   };
@@ -2657,7 +2876,7 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
   const notifyCouponReady = () => {
     // Auto-detect reason
     const todayCoupons = coupons.filter((c) => c.welderId === currentUser.id && c.date === todayStr);
-    let reason = "INICIO DE TURNO";
+    let reason = "START OF SHIFT";
     let size = "";
     let machine = "";
     let head = "";
@@ -2665,10 +2884,10 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
     const lastWeld = getLastWeldForWelder(currentUser.id);
     if (todayCoupons.length > 0 && lastWeld) {
       const lastCoupon = [...todayCoupons].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
-      if (lastCoupon.size !== lastWeld.size) reason = `CAMBIO DE DIÁMETRO (${lastWeld.size}")`;
-      else if (lastCoupon.machine !== lastWeld.machine) reason = `CAMBIO DE MÁQUINA`;
-      else if (lastCoupon.head !== lastWeld.head) reason = `CAMBIO DE HEAD`;
-      else reason = "CUPÓN ADICIONAL";
+      if (lastCoupon.size !== lastWeld.size) reason = `DIAMETER CHANGE (${lastWeld.size}")`;
+      else if (lastCoupon.machine !== lastWeld.machine) reason = `MACHINE CHANGE`;
+      else if (lastCoupon.head !== lastWeld.head) reason = `HEAD CHANGE`;
+      else reason = "ADDITIONAL COUPON";
       size = lastWeld.size || "";
       machine = lastWeld.machine || "";
       head = lastWeld.head || "";
@@ -2759,9 +2978,9 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
     <div className="space-y-4">
       <div className="flex justify-between items-start flex-wrap gap-2">
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-slate-900">CUPONES DE CALIFICACIÓN</h2>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900">QUALIFICATION COUPONS</h2>
           <p className="text-slate-500 text-xs tracking-wider font-semibold">
-            {visibleCoupons.length} TOTAL · {pendingCoupons.length} PENDIENTE QC · {acceptedCount} APROBADOS · {rejectedCount} RECHAZADOS
+            {visibleCoupons.length} TOTAL · {pendingCoupons.length} PENDING QC · {acceptedCount} APPROVED · {rejectedCount} REJECTED
           </p>
         </div>
       </div>
@@ -2773,9 +2992,9 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
             <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-5 flex items-start gap-3">
               <AlertTriangle size={22} className="text-amber-600 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
-                <div className="font-bold text-amber-900 text-sm mb-1">⚠️ CUPÓN REQUERIDO</div>
-                <div className="text-xs text-amber-800">Razón: <strong>{myReason}</strong></div>
-                <div className="text-xs text-amber-700 mt-1">Haz tu cupón físicamente y luego presiona el botón de abajo para notificar al QC.</div>
+                <div className="font-bold text-amber-900 text-sm mb-1">⚠️ COUPON REQUIRED</div>
+                <div className="text-xs text-amber-800">Reason: <strong>{myReason}</strong></div>
+                <div className="text-xs text-amber-700 mt-1">Make your coupon physically, then press the button below to notify QC.</div>
               </div>
             </div>
           )}
@@ -2784,22 +3003,22 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
             <div className="flex items-center gap-3 mb-3">
               <Award size={24} />
               <div>
-                <div className="font-black text-lg">CUPÓN READY</div>
-                <div className="text-xs text-blue-100 tracking-wider">Notifica al QC cuando hayas terminado tu cupón</div>
+                <div className="font-black text-lg">COUPON READY</div>
+                <div className="text-xs text-blue-100 tracking-wider">Notify QC when you've finished your coupon</div>
               </div>
             </div>
             <button
               onClick={notifyCouponReady}
               className="w-full bg-white text-blue-700 hover:bg-blue-50 font-black py-4 rounded-lg shadow-md transition-all hover:scale-[1.02] tracking-widest text-sm flex items-center justify-center gap-2"
             >
-              🔔 NOTIFICAR CUPÓN READY
+              🔔 NOTIFY COUPON READY
             </button>
           </div>
 
           {/* Today's coupons for the welder */}
           {myTodayCoupons.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-lg p-4">
-              <h3 className="text-xs font-bold tracking-widest text-slate-700 mb-3">MIS CUPONES DE HOY</h3>
+              <h3 className="text-xs font-bold tracking-widest text-slate-700 mb-3">MY COUPONS TODAY</h3>
               <div className="space-y-2">
                 {myTodayCoupons.map((c) => (
                   <div key={c.id} className={`p-3 rounded border-l-4 ${
@@ -2815,14 +3034,14 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
                             c.status === "accepted" ? "bg-emerald-100 text-emerald-700" :
                             "bg-red-100 text-red-700"
                           }`}>
-                            {c.status === "ready" ? "⏳ ESPERANDO QC" : c.status === "accepted" ? "✓ APROBADO" : "✗ RECHAZADO"}
+                            {c.status === "ready" ? "⏳ WAITING QC" : c.status === "accepted" ? "✓ APPROVED" : "✗ REJECTED"}
                           </span>
                           <span className="text-xs text-slate-600 font-mono">{c.time}</span>
                         </div>
-                        <div className="text-xs text-slate-600 mt-1"><strong>Razón:</strong> {c.reason}</div>
-                        {c.size && <div className="text-xs text-slate-500 mt-0.5">Diámetro: {c.size}" {c.machine && `· Máquina: ${c.machine}`}</div>}
-                        {c.qcInitial && <div className="text-xs text-cyan-700 mt-0.5">Revisado por QC: <strong>{c.qcInitial}</strong> a las {c.reviewedTime}</div>}
-                        {c.rejectReason && <div className="text-xs text-red-700 mt-1 italic">Razón rechazo: {c.rejectReason}</div>}
+                        <div className="text-xs text-slate-600 mt-1"><strong>Reason:</strong> {c.reason}</div>
+                        {c.size && <div className="text-xs text-slate-500 mt-0.5">Diameter: {c.size}" {c.machine && `· Machine: ${c.machine}`}</div>}
+                        {c.qcInitial && <div className="text-xs text-cyan-700 mt-0.5">Reviewed by QC: <strong>{c.qcInitial}</strong> at {c.reviewedTime}</div>}
+                        {c.rejectReason && <div className="text-xs text-red-700 mt-1 italic">Rejection reason: {c.rejectReason}</div>}
                       </div>
                     </div>
                   </div>
@@ -2839,7 +3058,7 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
           <div className="flex items-center gap-2 mb-3">
             <AlertCircle size={18} className="text-amber-600" />
             <h3 className="text-sm font-black tracking-widest text-amber-900">
-              🔔 {pendingCoupons.length} CUPONES ESPERANDO INSPECCIÓN
+              🔔 {pendingCoupons.length} COUPONS WAITING FOR INSPECTION
             </h3>
           </div>
           <div className="space-y-2">
@@ -2857,11 +3076,11 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
                           <span className="text-xs text-slate-500 font-mono">#{w?.welderId}</span>
                           <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded font-mono">{c.time}</span>
                         </div>
-                        <div className="text-xs text-slate-700"><strong>Razón:</strong> {c.reason}</div>
+                        <div className="text-xs text-slate-700"><strong>Reason:</strong> {c.reason}</div>
                         {(c.size || c.machine || c.head) && (
                           <div className="text-xs text-slate-500 mt-0.5">
-                            {c.size && <span>Diámetro: {c.size}"</span>}
-                            {c.machine && <span> · Máquina: {c.machine}</span>}
+                            {c.size && <span>Diameter: {c.size}"</span>}
+                            {c.machine && <span> · Machine: {c.machine}</span>}
                             {c.head && <span> · Head: {c.head}</span>}
                           </div>
                         )}
@@ -2871,13 +3090,13 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
                           onClick={() => approveCoupon(c.id)}
                           className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 text-xs font-bold tracking-widest rounded transition-colors flex items-center gap-1"
                         >
-                          <CheckCircle2 size={12} /> APROBAR
+                          <CheckCircle2 size={12} /> APPROVE
                         </button>
                         <button
                           onClick={() => setShowRejectModal(c)}
                           className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 text-xs font-bold tracking-widest rounded transition-colors flex items-center gap-1"
                         >
-                          <XCircle size={12} /> RECHAZAR
+                          <XCircle size={12} /> REJECT
                         </button>
                       </div>
                     </div>
@@ -2894,7 +3113,7 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle size={18} className="text-amber-600" />
             <h3 className="text-sm font-black tracking-widest text-amber-900">
-              ⚠️ {weldersNeedingCoupon.length} SOLDADORES NECESITAN CUPÓN
+              ⚠️ {weldersNeedingCoupon.length} WELDERS NEED COUPON
             </h3>
           </div>
           <div className="space-y-1">
@@ -2912,10 +3131,10 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
 
       {/* === HISTORY: GROUPED BY WELDER → DATE === */}
       <div className="space-y-3">
-        <h3 className="text-sm font-bold tracking-widest text-slate-700">HISTORIAL DE CUPONES</h3>
+        <h3 className="text-sm font-bold tracking-widest text-slate-700">COUPON HISTORY</h3>
         {grouped.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm">
-            {role === "welder" ? "No has hecho ningún cupón todavía." : "Sin cupones registrados todavía."}
+            {role === "welder" ? "You haven't made any coupons yet." : "No coupons registered yet."}
           </div>
         ) : (
           <div className="space-y-2">
@@ -2938,7 +3157,7 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">
-                        {total} {total === 1 ? "cupón" : "cupones"}
+                        {total} {total === 1 ? "coupon" : "coupons"}
                       </span>
                       {ready > 0 && (
                         <span className="bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold px-2 py-1 rounded-full">
@@ -2980,7 +3199,7 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
                                 </span>
                               </div>
                               <div className="flex items-center gap-2 text-xs">
-                                <span className="text-slate-500">{dCoupons.length} {dCoupons.length === 1 ? "cupón" : "cupones"}:</span>
+                                <span className="text-slate-500">{dCoupons.length} {dCoupons.length === 1 ? "coupon" : "coupons"}:</span>
                                 {dReady > 0 && <span className="text-amber-600 font-bold">⏳{dReady}</span>}
                                 {dAccepted > 0 && <span className="text-emerald-600 font-bold">✓{dAccepted}</span>}
                                 {dRejected > 0 && <span className="text-red-600 font-bold">✗{dRejected}</span>}
@@ -3003,12 +3222,12 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
                                             c.status === "accepted" ? "bg-emerald-100 text-emerald-700" :
                                             "bg-red-100 text-red-700"
                                           }`}>
-                                            {c.status === "ready" ? "⏳ ESPERANDO QC" : c.status === "accepted" ? "✓ APROBADO" : "✗ RECHAZADO"}
+                                            {c.status === "ready" ? "⏳ WAITING QC" : c.status === "accepted" ? "✓ APPROVED" : "✗ REJECTED"}
                                           </span>
                                           <span className="text-xs text-slate-500 font-mono">{c.time}</span>
                                           {c.qcInitial && <span className="text-xs text-cyan-700 font-semibold">QC: {c.qcInitial}</span>}
                                         </div>
-                                        <div className="text-xs text-slate-700"><strong>Razón:</strong> {c.reason}</div>
+                                        <div className="text-xs text-slate-700"><strong>Reason:</strong> {c.reason}</div>
                                         {(c.size || c.machine || c.head) && (
                                           <div className="text-xs text-slate-500 mt-0.5">
                                             {c.size && <span>Ø {c.size}"</span>}
@@ -3058,31 +3277,31 @@ function CouponsView({ role, currentUser, welders, coupons, dailyLogs, onAdd, on
 function CouponRejectModal({ coupon, welder, onClose, onConfirm }) {
   const [reason, setReason] = useState("");
   return (
-    <ModalShell title="RECHAZAR CUPÓN" onClose={onClose}>
+    <ModalShell title="REJECT COUPON" onClose={onClose}>
       <div className="bg-red-50 border border-red-200 p-3 rounded text-xs">
         <div className="flex items-center gap-2 mb-1">
           <HardHat size={14} className="text-blue-700" />
           <strong className="text-slate-900">{welder?.name}</strong>
           <span className="text-slate-500 font-mono">#{welder?.welderId}</span>
         </div>
-        <div className="text-slate-700">Razón cupón: {coupon.reason}</div>
-        <div className="text-slate-500">Hora: {coupon.time}</div>
+        <div className="text-slate-700">Coupon reason: {coupon.reason}</div>
+        <div className="text-slate-500">Time: {coupon.time}</div>
       </div>
-      <Field label="RAZÓN DEL RECHAZO">
+      <Field label="REJECTION REASON">
         <textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
           className={inputCls}
-          placeholder="Ej: falta penetración, color azulado, oxidación..."
+          placeholder="Ex: lack of penetration, bluish color, oxidation..."
           autoFocus
         />
       </Field>
       <button
-        onClick={() => { if (reason.trim()) onConfirm(reason.trim()); else alert("Escribe una razón."); }}
+        onClick={() => { if (reason.trim()) onConfirm(reason.trim()); else alert("Write a reason."); }}
         className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 text-xs tracking-widest mt-2 rounded transition-colors shadow-sm"
       >
-        CONFIRMAR RECHAZO
+        CONFIRM REJECTION
       </button>
     </ModalShell>
   );
@@ -3123,7 +3342,7 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
-      alert("Sube una imagen (JPG, PNG) o un PDF.");
+      alert("Upload an image (JPG, PNG) or PDF.");
       return;
     }
     const reader = new FileReader();
@@ -3159,15 +3378,15 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
   };
 
   const deleteRevision = (idx) => {
-    if (idx === 0) { alert("No se puede borrar Rev 0 (Original)"); return; }
-    if (!confirm("¿Borrar esta revisión?")) return;
+    if (idx === 0) { alert("Cannot delete Rev 0 (Original)"); return; }
+    if (!confirm("Delete this revision?")) return;
     const newRevs = revisions.filter((_, i) => i !== idx);
     setRevisions(newRevs);
     setActiveRev(Math.max(0, activeRev - (idx <= activeRev ? 1 : 0)));
   };
 
   const undoLast = () => {
-    if (revisions[activeRev]?.locked) { alert("Rev 0 está bloqueada."); return; }
+    if (revisions[activeRev]?.locked) { alert("Rev 0 is locked."); return; }
     const newRevs = [...revisions];
     const rev = { ...newRevs[activeRev] };
     const annotations = rev.annotations || [];
@@ -3195,7 +3414,7 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
   const handleImageMouseDown = (e) => {
     if (revisions[activeRev]?.locked) {
       if (tool !== "pan") {
-        alert("Rev 0 (Original) está bloqueada. Crea una nueva revisión para añadir anotaciones.");
+        alert("Rev 0 (Original) is locked. Create a new revision to add annotations.");
         return;
       }
     }
@@ -3253,7 +3472,7 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
 
   const confirmMark = () => {
     if (!pendingMark || !markLabel.trim()) {
-      alert("Escribe un label (ej: FW01, FW02)");
+      alert("Write a label (ex: FW01, FW02)");
       return;
     }
     const newMark = {
@@ -3399,15 +3618,15 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
   };
 
   const tools = [
-    { id: "pan", icon: Move, label: "MOVER" },
+    { id: "pan", icon: Move, label: "MOVE" },
     { id: "mark", icon: MousePointer2, label: "WELD" },
-    { id: "arrow", icon: ArrowUpRight, label: "FLECHA" },
-    { id: "line", icon: Minus, label: "LÍNEA" },
-    { id: "circle", icon: Circle, label: "CÍRCULO" },
-    { id: "rectangle", icon: Square, label: "RECTÁNGULO" },
-    { id: "pencil", icon: Pencil, label: "DIBUJAR" },
-    { id: "highlighter", icon: Highlighter, label: "MARCAR" },
-    { id: "text", icon: Type, label: "TEXTO" },
+    { id: "arrow", icon: ArrowUpRight, label: "ARROW" },
+    { id: "line", icon: Minus, label: "LINE" },
+    { id: "circle", icon: Circle, label: "CIRCLE" },
+    { id: "rectangle", icon: Square, label: "RECTANGLE" },
+    { id: "pencil", icon: Pencil, label: "DRAW" },
+    { id: "highlighter", icon: Highlighter, label: "HIGHLIGHT" },
+    { id: "text", icon: Type, label: "TEXT" },
   ];
 
   return (
@@ -3423,7 +3642,7 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
           </div>
           <div className="flex items-center gap-2">
             <button onClick={saveAll} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 text-xs font-bold tracking-widest rounded flex items-center gap-1.5 transition-colors">
-              <Save size={14} /> GUARDAR
+              <Save size={14} /> SAVE
             </button>
             <button onClick={onClose} className="text-slate-500 hover:text-red-600 p-2 hover:bg-red-50 rounded">
               <X size={20} />
@@ -3483,8 +3702,8 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
 
               <div className="w-px h-6 bg-slate-300 mx-1" />
 
-              <button onClick={undoLast} title="Deshacer última" className="px-2 py-1.5 text-[10px] font-bold tracking-widest rounded flex items-center gap-1 bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 transition-colors">
-                <Undo2 size={12} /> DESHACER
+              <button onClick={undoLast} title="Undo last" className="px-2 py-1.5 text-[10px] font-bold tracking-widest rounded flex items-center gap-1 bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 transition-colors">
+                <Undo2 size={12} /> UNDO
               </button>
             </div>
 
@@ -3502,7 +3721,7 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
               </button>
               <div className="w-px h-5 bg-slate-300 mx-2" />
               <span className="text-[10px] text-slate-500 italic">
-                {tool === "mark" ? "Clic para marcar weld point" : tool === "pan" ? "Arrastra para mover" : tool === "text" ? "Clic para añadir texto" : tool === "pencil" || tool === "highlighter" ? "Mantén presionado y arrastra" : "Clic y arrastra para dibujar"}
+                {tool === "mark" ? "Click to mark weld point" : tool === "pan" ? "Drag to move" : tool === "text" ? "Click to add text" : tool === "pencil" || tool === "highlighter" ? "Hold and drag" : "Click and drag to draw"}
               </span>
             </div>
           </>
@@ -3521,9 +3740,9 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
             <div className="absolute inset-0 flex items-center justify-center p-6">
               <div className="bg-white border-2 border-dashed border-slate-300 rounded-xl p-12 text-center max-w-md">
                 <FileImage size={48} className="mx-auto text-slate-300 mb-4" />
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Subir ISO</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Upload ISO</h3>
                 <p className="text-sm text-slate-500 mb-4">
-                  Sube una imagen (JPG, PNG) o PDF del isométrico para visualizarlo y anotarlo.
+                  Upload an image (JPG, PNG) or PDF of the isometric to view and annotate it.
                 </p>
                 <input
                   ref={fileInputRef}
@@ -3536,7 +3755,7 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
                   onClick={() => fileInputRef.current?.click()}
                   className="bg-blue-700 hover:bg-blue-800 text-white px-5 py-2.5 text-xs font-bold tracking-widest rounded inline-flex items-center gap-2 transition-colors"
                 >
-                  <Upload size={14} /> SELECCIONAR ARCHIVO
+                  <Upload size={14} /> SELECT FILE
                 </button>
               </div>
             </div>
@@ -3640,36 +3859,36 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
 
           {pendingMark && (
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white border border-slate-200 rounded-lg shadow-2xl p-4 w-80">
-              <div className="text-xs font-bold tracking-widest text-slate-700 mb-2">NUEVA MARCA DE WELD</div>
+              <div className="text-xs font-bold tracking-widest text-slate-700 mb-2">NEW WELD MARK</div>
               <input
                 value={markLabel}
                 onChange={(e) => setMarkLabel(e.target.value.toUpperCase())}
                 onKeyDown={(e) => { if (e.key === "Enter") confirmMark(); if (e.key === "Escape") setPendingMark(null); }}
-                placeholder="Ej: FW01, FW02, BW03..."
+                placeholder="Ex: FW01, FW02, BW03..."
                 className={inputCls}
                 autoFocus
               />
               <div className="flex gap-2 mt-3">
-                <button onClick={() => setPendingMark(null)} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 text-xs font-bold tracking-widest rounded transition-colors">CANCELAR</button>
-                <button onClick={confirmMark} className="flex-1 bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 text-xs font-bold tracking-widest rounded transition-colors">AÑADIR</button>
+                <button onClick={() => setPendingMark(null)} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 text-xs font-bold tracking-widest rounded transition-colors">CANCEL</button>
+                <button onClick={confirmMark} className="flex-1 bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 text-xs font-bold tracking-widest rounded transition-colors">ADD</button>
               </div>
             </div>
           )}
 
           {pendingText && (
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white border border-slate-200 rounded-lg shadow-2xl p-4 w-96">
-              <div className="text-xs font-bold tracking-widest text-slate-700 mb-2">AÑADIR TEXTO</div>
+              <div className="text-xs font-bold tracking-widest text-slate-700 mb-2">ADD TEXT</div>
               <input
                 value={textValue}
                 onChange={(e) => setTextValue(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") confirmText(); if (e.key === "Escape") setPendingText(null); }}
-                placeholder="Escribe tu nota..."
+                placeholder="Write your note..."
                 className={inputCls}
                 autoFocus
               />
               <div className="flex gap-2 mt-3">
-                <button onClick={() => setPendingText(null)} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 text-xs font-bold tracking-widest rounded transition-colors">CANCELAR</button>
-                <button onClick={confirmText} className="flex-1 bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 text-xs font-bold tracking-widest rounded transition-colors">AÑADIR</button>
+                <button onClick={() => setPendingText(null)} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 text-xs font-bold tracking-widest rounded transition-colors">CANCEL</button>
+                <button onClick={confirmText} className="flex-1 bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 text-xs font-bold tracking-widest rounded transition-colors">ADD</button>
               </div>
             </div>
           )}
@@ -3681,10 +3900,10 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
           <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <GitBranch size={16} className="text-blue-700" />
-              <h3 className="text-sm font-bold tracking-widest text-slate-800">REVISIONES</h3>
+              <h3 className="text-sm font-bold tracking-widest text-slate-800">REVISIONS</h3>
             </div>
             <button onClick={createRevision} className="bg-blue-700 hover:bg-blue-800 text-white px-2 py-1 text-[10px] font-bold tracking-widest rounded flex items-center gap-1 transition-colors">
-              <Plus size={12} /> NUEVA
+              <Plus size={12} /> NEW
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -3705,7 +3924,7 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
                         {rev.marks?.length || 0} welds
                       </span>
                       <span className="bg-violet-100 text-violet-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                        {rev.annotations?.length || 0} notas
+                        {rev.annotations?.length || 0} notes
                       </span>
                       {rev.locked && (
                         <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
@@ -3723,15 +3942,15 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
               </div>
             ))}
             <div className="text-[10px] text-slate-500 italic mt-3 px-2">
-              💡 La <strong>Rev 0</strong> es el original y siempre queda bloqueado. Crea revisiones nuevas para añadir o cambiar anotaciones.
+              💡 The <strong>Rev 0</strong> is the original and always stays locked. Create new revisions to add or change annotations.
             </div>
           </div>
 
           {currentRev && (
             <div className="border-t border-slate-200 p-3 max-h-72 overflow-y-auto">
-              <div className="text-[10px] font-bold tracking-widest text-slate-500 mb-2">CONTENIDO DE {currentRev.name}</div>
+              <div className="text-[10px] font-bold tracking-widest text-slate-500 mb-2">CONTENT OF {currentRev.name}</div>
               {(currentRev.marks?.length || 0) === 0 && (currentRev.annotations?.length || 0) === 0 ? (
-                <div className="text-xs text-slate-400 italic">Sin contenido en esta revisión.</div>
+                <div className="text-xs text-slate-400 italic">No content in this revision.</div>
               ) : (
                 <div className="space-y-1">
                   {currentRev.marks?.map((mark) => (
@@ -3750,7 +3969,7 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
                     </div>
                   ))}
                   {currentRev.annotations?.map((ann) => {
-                    const typeLabel = ann.type === "arrow" ? "Flecha" : ann.type === "line" ? "Línea" : ann.type === "circle" ? "Círculo" : ann.type === "rectangle" ? "Rectángulo" : ann.type === "pencil" ? "Dibujo" : ann.type === "highlighter" ? "Marcador" : ann.type === "text" ? "Texto" : ann.type;
+                    const typeLabel = ann.type === "arrow" ? "Arrow" : ann.type === "line" ? "Line" : ann.type === "circle" ? "Circle" : ann.type === "rectangle" ? "Rectangle" : ann.type === "pencil" ? "Drawing" : ann.type === "highlighter" ? "Highlighter" : ann.type === "text" ? "Text" : ann.type;
                     return (
                       <div key={ann.id} className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded">
                         <div className="flex items-center gap-2">
@@ -3779,10 +3998,10 @@ function IsoViewerModal({ iso, onClose, onUpdateIso }) {
               className="hidden"
             />
             <button
-              onClick={() => { if (confirm("¿Reemplazar la imagen del ISO?")) fileInputRef.current?.click(); }}
+              onClick={() => { if (confirm("Replace ISO image?")) fileInputRef.current?.click(); }}
               className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold tracking-widest py-2 rounded transition-colors flex items-center justify-center gap-2"
             >
-              <Upload size={12} /> REEMPLAZAR IMAGEN
+              <Upload size={12} /> REPLACE IMAGE
             </button>
           </div>
         </div>
@@ -3834,7 +4053,7 @@ export default function WeldApp() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-blue-700 font-semibold text-sm tracking-widest animate-pulse">CARGANDO SISTEMA...</div>
+        <div className="text-blue-700 font-semibold text-sm tracking-widest animate-pulse">LOADING SYSTEM...</div>
       </div>
     );
   }
