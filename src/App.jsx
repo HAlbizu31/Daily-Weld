@@ -750,17 +750,26 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
     let logIdCounter = 0;
     const weldCounters = { w1: 1, w2: 1, w3: 1, w4: 1, w5: 1, w6: 1, w7: 1, w8: 1 };
 
-    // Generate 90 days of welds — skip weekends, vary intensity by recency
+    // Generate 90 days of welds — recent 7 days ALWAYS have data (incl. today/yesterday/weekends)
+    // Older days skip weekends. Intensity scales with recency.
     for (let daysAgo = 89; daysAgo >= 0; daysAgo--) {
       const dt = new Date(today); dt.setDate(dt.getDate() - daysAgo);
       const dayOfWeek = dt.getDay();
-      if (dayOfWeek === 0 || dayOfWeek === 6) continue; // skip weekends
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isRecent = daysAgo <= 6; // last 7 days always get data
+      if (isWeekend && !isRecent) continue; // older weekends: skip
       const dateStr = dt.toISOString().split("T")[0];
       const recencyFactor = 1 - (daysAgo / 120);
+      // Weekend crews are smaller (fewer welders show up for overtime)
+      const weekendDamper = isWeekend ? 0.5 : 1;
 
       Object.keys(welderWork).forEach((wId) => {
-        const workProb = 0.4 + recencyFactor * 0.4;
-        if (rnd() > workProb) return;
+        // On weekends only ~50% of welders come in; weekdays follow normal pattern
+        const workProb = (0.4 + recencyFactor * 0.4) * weekendDamper;
+        // Guarantee TODAY has at least some action: on daysAgo===0, force first 3 welders in
+        if (daysAgo === 0 && ["w1","w2","w3"].includes(wId)) {
+          // forced work for today's demo
+        } else if (rnd() > workProb) return;
 
         const m = machines[wId];
         const workItems = welderWork[wId];
@@ -2992,7 +3001,7 @@ function ReportsView({ data, currentUser }) {
         wIsoSizes[e.iso].welds++;
         wIsoSizes[e.iso].supports += Number(e.supports) || 0;
         wIsoSizes[e.iso].linearFeet += Number(e.linearFeet) || 0;
-        if (e.weldNumber) wIsoSizes[e.iso].weldNumbers.push(e.weldNumber);
+        if (e.weldNumber) wIsoSizes[e.iso].weldNumbers.push({ number: e.weldNumber, date: l.date });
       }
     }));
     const wInsp = inspectionsInRange.filter((i) => {
@@ -3008,9 +3017,15 @@ function ReportsView({ data, currentUser }) {
       return c.welderId === w.id && cd && cd >= start && cd <= end;
     });
     const sortW = (arr) => {
-      const uniq = [...new Set(arr)];
-      uniq.sort((a, b) => (parseInt((a || "").replace(/\D/g, ""), 10) || 0) - (parseInt((b || "").replace(/\D/g, ""), 10) || 0));
-      return uniq;
+      // arr is [{number, date}] — dedupe by number keeping earliest date, then sort numerically
+      const map = {};
+      arr.forEach((x) => {
+        if (!x.number) return;
+        if (!map[x.number] || x.date < map[x.number]) map[x.number] = x.date;
+      });
+      return Object.entries(map)
+        .map(([number, date]) => ({ number, date }))
+        .sort((a, b) => (parseInt(a.number.replace(/\D/g, ""), 10) || 0) - (parseInt(b.number.replace(/\D/g, ""), 10) || 0));
     };
     const wIsoRows = Object.entries(wIsoSizes).map(([num, v]) => ({ number: num, ...v, weldNumbers: sortW(v.weldNumbers || []) })).sort((a, b) => b.welds - a.welds);
     return {
@@ -3046,20 +3061,22 @@ function ReportsView({ data, currentUser }) {
     isoBreakdown[e.iso].welds++;
     isoBreakdown[e.iso].supports += Number(e.supports) || 0;
     isoBreakdown[e.iso].linearFeet += Number(e.linearFeet) || 0;
-    if (e.weldNumber) isoBreakdown[e.iso].weldNumbers.push(e.weldNumber);
+    if (e.weldNumber) isoBreakdown[e.iso].weldNumbers.push({ number: e.weldNumber, date: l.date });
     const w = (data.welders || []).find((x) => x.id === l.welderId);
     if (w) isoBreakdown[e.iso].welders.add(w.name);
     if (!isoBreakdown[e.iso].system) isoBreakdown[e.iso].system = getSystemFromEntry(e);
   }));
   // Natural-sort weld numbers (FW01 < FW02 < FW10) and build display string
   const sortWeldNums = (arr) => {
-    const uniq = [...new Set(arr)];
-    uniq.sort((a, b) => {
-      const na = parseInt((a || "").replace(/\D/g, ""), 10) || 0;
-      const nb = parseInt((b || "").replace(/\D/g, ""), 10) || 0;
-      return na - nb;
+    // arr is [{number, date}] — dedupe by number (keep earliest date), sort by number numerically
+    const map = {};
+    arr.forEach((x) => {
+      if (!x.number) return;
+      if (!map[x.number] || x.date < map[x.number]) map[x.number] = x.date;
     });
-    return uniq;
+    return Object.entries(map)
+      .map(([number, date]) => ({ number, date }))
+      .sort((a, b) => (parseInt(a.number.replace(/\D/g, ""), 10) || 0) - (parseInt(b.number.replace(/\D/g, ""), 10) || 0));
   };
   const isoRows = Object.entries(isoBreakdown).map(([number, v]) => ({
     number,
@@ -3173,7 +3190,7 @@ ${topWelder ? `\n🏆 Top performer: ${topWelder.welder.name} — ${fmtNum(topWe
       <td style="text-align:right;font-weight:700">${fmtNum(r.welds)}</td>
       <td style="text-align:right">${fmtNum(r.supports)}</td>
       <td style="text-align:right">${fmtNum(r.linearFeet)}</td>
-      <td style="font-family:monospace;font-size:7.5pt;color:#334155;word-break:break-word">${r.weldNumbers.join(", ") || "—"}</td>
+      <td style="font-family:monospace;font-size:7.5pt;color:#334155;word-break:break-word;line-height:1.5">${r.weldNumbers.length ? r.weldNumbers.map((wn) => `${wn.number}<span style="color:#94a3b8;font-size:7pt;"> (${wn.date ? wn.date.slice(5).replace("-", "/") : "—"})</span>`).join(", ") : "—"}</td>
     </tr>`).join("");
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Weld Report — ${label} — ${fmtDateRange()}</title>
 <style>@page{size:letter;margin:0.5in}body{font-family:Helvetica,Arial,sans-serif;color:#0f172a;margin:0;padding:0}
@@ -3233,7 +3250,7 @@ ${systemRows.length > 0 ? `<div class="section-title">Breakdown by System</div>
 <table class="simple-table"><thead><tr><th>System</th><th class="right">Welds</th><th class="right">Supports</th><th class="right">Linear Feet</th></tr></thead>
 <tbody>${systemRowsHTML}</tbody></table>` : ""}
 ${isoRows.length > 0 ? `<div class="section-title">Breakdown by ISO</div>
-<div class="section-subtitle">${isoRows.length} ISO${isoRows.length === 1 ? "" : "s"} worked · showing which specific weld numbers (FW01, FW02...) were completed on each ISO</div>
+<div class="section-subtitle">${isoRows.length} ISO${isoRows.length === 1 ? "" : "s"} worked · each weld number shown with the date it was completed (MM/DD format)</div>
 <table class="iso-table">
 <colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"><col class="c6"><col class="c7"></colgroup>
 <thead><tr>
@@ -3243,7 +3260,7 @@ ${isoRows.length > 0 ? `<div class="section-title">Breakdown by ISO</div>
 <th class="right">Welds</th>
 <th class="right">Supports</th>
 <th class="right">Lin. Ft</th>
-<th>Weld Numbers Completed</th>
+<th>Weld Numbers · Dates</th>
 </tr></thead>
 <tbody>${isoRowsHTML}</tbody></table>` : ""}
 <div class="ft">Report generated by SWCS · Sanitary Weld Control System · ${new Date().toISOString().split("T")[0]}</div>
@@ -3409,7 +3426,7 @@ ${isoRows.length > 0 ? `<div class="section-title">Breakdown by ISO</div>
                       {r.isoRows.length > 0 && (
                         <div className="bg-white rounded border border-slate-200 overflow-hidden">
                           <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 text-[10px] font-black tracking-widest text-slate-600">
-                            PER-ISO BREAKDOWN · WITH WELD NUMBERS
+                            PER-ISO BREAKDOWN · WELD NUMBERS WITH DATES
                           </div>
                           <div className="max-h-80 overflow-y-auto">
                             <table className="w-full text-sm">
@@ -3429,8 +3446,18 @@ ${isoRows.length > 0 ? `<div class="section-title">Breakdown by ISO</div>
                                     <td className="px-2 py-2 text-right font-mono font-bold text-slate-900">{fmtNum(row.welds)}</td>
                                     <td className="px-2 py-2 text-right font-mono text-emerald-700">{fmtNum(row.supports)}</td>
                                     <td className="px-2 py-2 text-right font-mono text-purple-700">{fmtNum(row.linearFeet)}</td>
-                                    <td className="px-3 py-2 font-mono text-[10px] text-slate-700 break-all">
-                                      {(row.weldNumbers || []).join(", ") || <span className="text-slate-400 italic">—</span>}
+                                    <td className="px-3 py-2 font-mono text-[10px] text-slate-700 break-words leading-relaxed">
+                                      {(row.weldNumbers || []).length === 0 ? (
+                                        <span className="text-slate-400 italic">—</span>
+                                      ) : (
+                                        row.weldNumbers.map((wn, idx) => (
+                                          <span key={idx}>
+                                            <span className="font-bold text-slate-800">{wn.number}</span>
+                                            <span className="text-slate-400 text-[9px]"> ({wn.date ? wn.date.slice(5).replace("-", "/") : "—"})</span>
+                                            {idx < row.weldNumbers.length - 1 && ", "}
+                                          </span>
+                                        ))
+                                      )}
                                     </td>
                                   </tr>
                                 ))}
