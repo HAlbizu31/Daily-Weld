@@ -686,10 +686,10 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
 <text x="220" y="480">737-10202</text><text x="600" y="480">737-10400</text><text x="980" y="480">737-20600</text>
 <text x="220" y="760">737-20700</text><text x="600" y="760">737-20620</text><text x="980" y="760">737-20231</text>
 </g>
-<text x="600" y="30" font-family="Helvetica,Arial" font-size="14" fill="#333" text-anchor="middle" font-weight="bold">BIOTECH FACILITY — FLOOR PLAN LVL 1</text>
+<text x="600" y="30" font-family="Helvetica,Arial" font-size="14" fill="#333" text-anchor="middle" font-weight="bold">BIOTECH FACILITY - FLOOR PLAN LVL 1</text>
 <text x="600" y="890" font-family="Helvetica,Arial" font-size="10" fill="#888" text-anchor="middle" font-style="italic">Replace with your actual floor plan</text>
 </svg>`;
-    const demoFloorPlanUrl = `data:image/svg+xml;base64,${btoa(demoFloorPlanSvg)}`;
+    const demoFloorPlanUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(demoFloorPlanSvg)}`;
     const futureDate = (days) => { const dt = new Date(today); dt.setDate(dt.getDate() + days); return dt.toISOString().split("T")[0]; };
     const project = {
       id: "p1",
