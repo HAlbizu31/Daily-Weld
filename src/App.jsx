@@ -436,13 +436,45 @@ function CodesView() {
   );
 }
 
+// ============================================================
+// AUTO-ASSIGN HELPERS — map ISOs to Project Map zones by pattern
+// ============================================================
+// Converts a user-friendly pattern like "737-102*" or "*HPUR*" or "737-*-RV-*"
+// into a case-insensitive RegExp. "*" acts as a wildcard matching any chars.
+function patternToRegex(pattern) {
+  if (!pattern || !pattern.trim()) return null;
+  // Escape regex special chars EXCEPT '*' which we convert to '.*'
+  const escaped = pattern.trim().replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+  const regexStr = "^" + escaped.replace(/\*/g, ".*") + "$";
+  try { return new RegExp(regexStr, "i"); } catch (e) { return null; }
+}
+// Returns the first zone whose isoPattern matches this ISO number, or null.
+function findMatchingZone(isoNumber, zones) {
+  if (!isoNumber || !zones || zones.length === 0) return null;
+  for (const zone of zones) {
+    if (!zone.isoPattern) continue;
+    const regex = patternToRegex(zone.isoPattern);
+    if (regex && regex.test(isoNumber)) return zone;
+  }
+  return null;
+}
+
 function AppShell({ data, setData, currentUser, logout, view, setView }) {
   const role = currentUser.role;
   const [menuOpen, setMenuOpen] = useState(false);
 
   const addWelder = (w) => setData((d) => ({ ...d, welders: [...d.welders, { ...w, id: Date.now().toString() }] }));
   const deleteWelder = (id) => { if (!confirm("Delete welder?")) return; setData((d) => ({ ...d, welders: d.welders.filter((w) => w.id !== id) })); };
-  const addIso = (iso) => setData((d) => ({ ...d, isos: [...d.isos, { ...iso, id: Date.now().toString() }] }));
+  // addIso: creates ISO + auto-assigns it to first zone whose isoPattern matches the ISO number
+  const addIso = (iso) => setData((d) => {
+    const newIso = { ...iso, id: Date.now().toString() };
+    const matchingZone = findMatchingZone(newIso.number, d.project?.zones || []);
+    const newProject = (matchingZone && d.project)
+      ? { ...d.project, zones: d.project.zones.map((z) =>
+          z.id === matchingZone.id ? { ...z, isoIds: [...(z.isoIds || []), newIso.id] } : z) }
+      : d.project;
+    return { ...d, isos: [...d.isos, newIso], project: newProject };
+  });
   const deleteIso = (id) => { if (!confirm("Delete ISO?")) return; setData((d) => ({ ...d, isos: d.isos.filter((i) => i.id !== id) })); };
   const assignIso = (isoId, welderId) => setData((d) => ({ ...d, isos: d.isos.map((i) => i.id === isoId ? { ...i, welderId } : i) }));
   const saveLog = (log) => setData((d) => log.id ? { ...d, dailyLogs: d.dailyLogs.map((l) => l.id === log.id ? log : l) } : { ...d, dailyLogs: [...d.dailyLogs, { ...log, id: Date.now().toString(), entries: [] }] });
@@ -491,6 +523,107 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
       z.id === zoneId ? { ...z, photos: (z.photos || []).filter((p) => p.id !== photoId) } : z
     ) } : d.project,
   }));
+
+  // === AUTO-ASSIGN all existing ISOs to zones based on isoPattern ===
+  // Preserves manual assignments; only places ISOs that are not currently in any zone.
+  const autoAssignAllIsos = () => {
+    setData((d) => {
+      if (!d.project || !(d.project.zones || []).length) {
+        setTimeout(() => alert("⚠️ No zones defined yet. Draw zones on the Project Map first and give each one an ISO pattern."), 50);
+        return d;
+      }
+      const zones = d.project.zones;
+      const alreadyAssigned = new Set();
+      zones.forEach((z) => (z.isoIds || []).forEach((id) => alreadyAssigned.add(id)));
+      let matched = 0, unmatched = 0, kept = alreadyAssigned.size;
+      const assignments = {}; // isoId -> zoneId
+      d.isos.forEach((iso) => {
+        if (alreadyAssigned.has(iso.id)) return; // keep manual assignment
+        const z = findMatchingZone(iso.number, zones);
+        if (z) { assignments[iso.id] = z.id; matched++; }
+        else unmatched++;
+      });
+      const newZones = zones.map((z) => {
+        const newIds = [...(z.isoIds || [])];
+        Object.entries(assignments).forEach(([isoId, zoneId]) => {
+          if (zoneId === z.id && !newIds.includes(isoId)) newIds.push(isoId);
+        });
+        return { ...z, isoIds: newIds };
+      });
+      setTimeout(() => alert(`✅ AUTO-ASSIGN COMPLETE\n\n🔵 ${matched} ISOs newly assigned to zones\n🟢 ${kept} ISOs kept in current zone (manual assignments preserved)\n🟡 ${unmatched} ISOs with no matching pattern (check Zone patterns or assign manually)`), 100);
+      return { ...d, project: { ...d.project, zones: newZones } };
+    });
+  };
+
+  // === BULK IMPORT ISOs from CSV ===
+  // Expected columns (first row headers, case-insensitive):
+  //   iso_number (or "iso" or "number")   REQUIRED
+  //   system                              optional
+  //   size                                optional
+  //   welder                              optional (matches welder name OR welderId)
+  //   zone                                optional (if present, forces zone — overrides pattern match)
+  const bulkImportIsos = (csvText) => {
+    const lines = csvText.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) { alert("CSV is empty or has no data rows."); return; }
+    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ""));
+    const idxNumber = headers.findIndex((h) => ["iso_number", "iso", "number", "iso #", "iso#"].includes(h));
+    const idxSystem = headers.findIndex((h) => h === "system");
+    const idxSize = headers.findIndex((h) => h === "size");
+    const idxWelder = headers.findIndex((h) => h === "welder");
+    const idxZone = headers.findIndex((h) => h === "zone");
+    if (idxNumber === -1) { alert("CSV must have a column named 'iso_number', 'iso', or 'number'."); return; }
+    setData((d) => {
+      const newIsos = [];
+      const assignments = {}; // isoId -> zoneId
+      let skipped = 0;
+      const existingNumbers = new Set(d.isos.map((i) => i.number.trim().toLowerCase()));
+      lines.slice(1).forEach((line, i) => {
+        const cols = line.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+        const number = cols[idxNumber];
+        if (!number) { skipped++; return; }
+        if (existingNumbers.has(number.toLowerCase())) { skipped++; return; } // skip duplicates
+        existingNumbers.add(number.toLowerCase());
+        const welderName = idxWelder > -1 ? cols[idxWelder] : "";
+        const matchedWelder = welderName ? d.welders.find((w) =>
+          w.name.toLowerCase() === welderName.toLowerCase() ||
+          w.welderId === welderName ||
+          w.name.toLowerCase().startsWith(welderName.toLowerCase())
+        ) : null;
+        const iso = {
+          id: `${Date.now()}-${i}`,
+          number,
+          system: idxSystem > -1 ? cols[idxSystem] : "",
+          size: idxSize > -1 ? cols[idxSize] : "",
+          welderId: matchedWelder ? matchedWelder.id : null,
+          photos: [],
+        };
+        newIsos.push(iso);
+        // Determine zone: explicit "zone" column wins, otherwise pattern match
+        const zones = d.project?.zones || [];
+        let targetZone = null;
+        if (idxZone > -1 && cols[idxZone]) {
+          targetZone = zones.find((z) => z.name.toLowerCase() === cols[idxZone].toLowerCase());
+        }
+        if (!targetZone) targetZone = findMatchingZone(number, zones);
+        if (targetZone) assignments[iso.id] = targetZone.id;
+      });
+      let matched = Object.keys(assignments).length;
+      let unmatched = newIsos.length - matched;
+      const newZones = (d.project?.zones || []).map((z) => {
+        const newIds = [...(z.isoIds || [])];
+        Object.entries(assignments).forEach(([isoId, zoneId]) => {
+          if (zoneId === z.id && !newIds.includes(isoId)) newIds.push(isoId);
+        });
+        return { ...z, isoIds: newIds };
+      });
+      setTimeout(() => alert(`✅ BULK IMPORT COMPLETE\n\n📥 ${newIsos.length} ISOs imported\n🔵 ${matched} auto-assigned to zones\n🟡 ${unmatched} without zone match\n⏩ ${skipped} skipped (duplicates or blank rows)`), 100);
+      return {
+        ...d,
+        isos: [...d.isos, ...newIsos],
+        project: d.project ? { ...d.project, zones: newZones } : d.project,
+      };
+    });
+  };
 
   // === ISO PHOTOS (uploaded by welders, visible by admin in project map) ===
   const addIsoPhoto = (isoId, photoData) => setData((d) => ({
@@ -636,6 +769,13 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
 
         const entries = Array.from({length: numWelds}, (_, n) => {
           const weldNum = weldCounters[wId]++;
+          // Realistic supports: ~70% of welds have 0-1, some have 2-3
+          const supportsRoll = Math.random();
+          const supports = supportsRoll < 0.4 ? 0 : supportsRoll < 0.75 ? 1 : supportsRoll < 0.92 ? 2 : 3;
+          // Realistic linear feet: scales with pipe size (2" ≈ 2-5 ft, 4" ≈ 4-8 ft)
+          const sizeNum = parseFloat(workItem.size) || 2;
+          const baseFt = 2 + sizeNum * 0.8;
+          const linearFeet = Math.round((baseFt + Math.random() * 4) * 2) / 2; // round to .5
           return {
             id: `e-${wId}-${daysAgo}-${n}`,
             size: workItem.size,
@@ -646,6 +786,8 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
             program: workItem.prog,
             head: m.head,
             system: workItem.sys,
+            supports,
+            linearFeet,
             comments: "",
           };
         });
@@ -807,6 +949,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
   const tabs = role === "admin" ? [
     { id: "dashboard", icon: BarChart3, label: "DASHBOARD" },
     { id: "projectmap", icon: Layers, label: "PROJECT MAP" },
+    { id: "reports", icon: FileCheck, label: "REPORTS" },
     { id: "welders", icon: Users, label: "WELDERS" },
     { id: "isos", icon: FileText, label: "ISOS" },
     { id: "logs", icon: ClipboardList, label: "DAILY LOG" },
@@ -940,14 +1083,15 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {view === "dashboard" && <DashboardView role={role} stats={stats} data={data} visibleLogs={visibleLogs} getWelderStats={getWelderStats} currentUser={currentUser} />}
         {view === "welders" && role === "admin" && <WeldersView welders={data.welders} isos={data.isos} tools={data.tools} getStats={getWelderStats} onAdd={addWelder} onDelete={deleteWelder} />}
-        {view === "isos" && role === "admin" && <IsosView isos={data.isos} welders={data.welders} systems={data.systems || []} onAdd={addIso} onDelete={deleteIso} onAssign={assignIso} onAddSystem={addSystem} onDeleteSystem={deleteSystem} onUpdateIso={updateIso} />}
+        {view === "isos" && role === "admin" && <IsosView isos={data.isos} welders={data.welders} systems={data.systems || []} project={data.project} onAdd={addIso} onDelete={deleteIso} onAssign={assignIso} onAddSystem={addSystem} onDeleteSystem={deleteSystem} onUpdateIso={updateIso} onBulkImport={bulkImportIsos} />}
         {view === "logs" && <LogsView role={role} currentUser={currentUser} logs={visibleLogs} welders={data.welders} isos={data.isos} inspections={data.inspections} onSaveLog={saveLog} onDeleteLog={deleteLog} onAddEntry={addEntry} onDeleteEntry={deleteEntry} onUpdateEntry={updateEntry} />}
         {view === "inspections" && (role === "admin" || role === "qc") && <InspectionsView role={role} logs={data.dailyLogs} welders={data.welders} inspections={data.inspections} onAdd={addInspection} onDelete={deleteInspection} />}
         {view === "coupons" && <CouponsView role={role} currentUser={currentUser} welders={data.welders} coupons={data.coupons || []} dailyLogs={data.dailyLogs} onAdd={addCoupon} onUpdate={updateCoupon} onDelete={deleteCoupon} />}
-        {view === "projectmap" && role === "admin" && <ProjectMapView project={data.project} isos={data.isos} welders={data.welders} dailyLogs={data.dailyLogs} inspections={data.inspections} onSaveProject={saveProject} onAddZone={addZone} onUpdateZone={updateZone} onDeleteZone={deleteZone} onAddPhoto={addZonePhoto} onDeletePhoto={deleteZonePhoto} />}
+        {view === "projectmap" && role === "admin" && <ProjectMapView project={data.project} isos={data.isos} welders={data.welders} dailyLogs={data.dailyLogs} inspections={data.inspections} onSaveProject={saveProject} onAddZone={addZone} onUpdateZone={updateZone} onDeleteZone={deleteZone} onAddPhoto={addZonePhoto} onDeletePhoto={deleteZonePhoto} onAutoAssign={autoAssignAllIsos} />}
         {view === "myisos" && role === "welder" && <MyIsosView currentUser={currentUser} isos={data.isos} systems={data.systems || []} onAddPhoto={addIsoPhoto} onDeletePhoto={deleteIsoPhoto} />}
         {view === "tools" && <ToolsView role={role} currentUser={currentUser} tools={data.tools} welders={data.welders} onAdd={addTool} onDelete={deleteTool} onReassign={reassignTool} />}
         {view === "charts" && role === "admin" && <ChartsView data={data} getEntryRef={getEntryRef} />}
+        {view === "reports" && role === "admin" && <ReportsView data={data} currentUser={currentUser} />}
         {view === "codes" && <CodesView />}
       </main>
     </div>
@@ -1260,7 +1404,7 @@ function SystemsModal({ onClose, systems, onAdd, onDelete }) {
   );
 }
 
-function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSystem, onDeleteSystem, onUpdateIso }) {
+function IsosView({ isos, welders, systems, project, onAdd, onDelete, onAssign, onAddSystem, onDeleteSystem, onUpdateIso, onBulkImport }) {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [showSystemsModal, setShowSystemsModal] = useState(false);
@@ -1269,6 +1413,35 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
   const [expandedWelders, setExpandedWelders] = useState({});
   const [expandedSystems, setExpandedSystems] = useState({});
   const [expandedSizes, setExpandedSizes] = useState({});
+  const bulkFileInputRef = React.useRef(null);
+  const zonePatternCount = (project?.zones || []).filter((z) => z.isoPattern).length;
+
+  const handleBulkImportFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!/\.csv$/i.test(file.name)) { alert("Please upload a .csv file."); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      onBulkImport(ev.target.result);
+      if (bulkFileInputRef.current) bulkFileInputRef.current.value = "";
+    };
+    reader.readAsText(file);
+  };
+
+  const downloadCsvTemplate = () => {
+    const sampleRows = [
+      "iso_number,system,size,welder,zone",
+      "737-10200-RV-001,RV,2\",Hector,Mezzanine",
+      "737-10250-HPUR-002,HPUR,1.5\",Nelvin,HVAC Mechanical",
+      "737-10400-PV-003,PV,2\",Michael,Process Corridor",
+    ];
+    const blob = new Blob([sampleRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "swcs_iso_import_template.csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const toggleWelder = (id) => setExpandedWelders((p) => ({ ...p, [id]: !p[id] }));
   const toggleSystem = (key) => setExpandedSystems((p) => ({ ...p, [key]: !p[key] }));
@@ -1341,7 +1514,27 @@ function IsosView({ isos, welders, systems, onAdd, onDelete, onAssign, onAddSyst
           <h2 className="text-2xl font-black tracking-tight text-slate-900">ISOMETRICS</h2>
           <p className="text-slate-500 text-xs tracking-wider font-semibold">{isos.length} TOTAL · {isos.filter((i) => i.welderId).length} ASSIGNED · {unassignedIsos.length} UNASSIGNED · {systems.length} SYSTEMS</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <input ref={bulkFileInputRef} type="file" accept=".csv" onChange={handleBulkImportFile} className="hidden" />
+          <button
+            onClick={downloadCsvTemplate}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 text-[10px] font-bold tracking-widest flex items-center gap-1 transition-colors rounded border border-slate-200"
+            title="Download a sample CSV template"
+          >
+            <Download size={12} /> TEMPLATE
+          </button>
+          {onBulkImport && (
+            <button
+              onClick={() => bulkFileInputRef.current?.click()}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-3 py-2 text-[10px] font-bold tracking-widest flex items-center gap-1 transition-all hover:scale-[1.02] rounded shadow-sm"
+              title={zonePatternCount > 0 ? `Will auto-assign to ${zonePatternCount} zone pattern(s)` : "Draw zones with patterns first for auto-assign"}
+            >
+              <Upload size={12} /> BULK IMPORT CSV
+              {zonePatternCount > 0 && (
+                <span className="bg-white/20 text-white px-1.5 py-0.5 rounded text-[9px] font-black ml-1">AUTO</span>
+              )}
+            </button>
+          )}
           <button onClick={() => setShowSystemsModal(true)} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 text-xs font-bold tracking-widest flex items-center gap-2 transition-colors rounded shadow-sm">
             <Layers size={14} /> SYSTEMS
           </button>
@@ -1654,11 +1847,25 @@ function EntryModal({ onClose, onSave, isos, editing }) {
   const [program, setProgram] = useState(editing?.program || "");
   const [head, setHead] = useState(editing?.head || "");
   const [system, setSystem] = useState(editing?.system || "");
+  const [supports, setSupports] = useState(editing?.supports || "");
+  const [linearFeet, setLinearFeet] = useState(editing?.linearFeet || "");
   const [comments, setComments] = useState(editing?.comments || "");
 
   const submit = () => {
     if (!iso.trim() || !weldNumber.trim()) return;
-    onSave({ size: size.trim(), machine: machine.trim(), iso: iso.trim().toUpperCase(), weldNumber: weldNumber.trim().toUpperCase(), bottle: bottle.trim(), program: program.trim(), head: head.trim(), system: system.trim(), comments: comments.trim() });
+    onSave({
+      size: size.trim(),
+      machine: machine.trim(),
+      iso: iso.trim().toUpperCase(),
+      weldNumber: weldNumber.trim().toUpperCase(),
+      bottle: bottle.trim(),
+      program: program.trim(),
+      head: head.trim(),
+      system: system.trim(),
+      supports: Number(supports) || 0,
+      linearFeet: Number(linearFeet) || 0,
+      comments: comments.trim(),
+    });
   };
 
   return (
@@ -1686,6 +1893,20 @@ function EntryModal({ onClose, onSave, isos, editing }) {
         <Field label="PROGRAM"><input value={program} onChange={(e) => setProgram(e.target.value)} className={inputCls} /></Field>
         <Field label="HEAD"><input value={head} onChange={(e) => setHead(e.target.value)} className={inputCls} /></Field>
         <Field label="SYSTEM"><input value={system} onChange={(e) => setSystem(e.target.value)} className={inputCls} /></Field>
+      </div>
+      {/* === NEW: Supports & Linear Feet for Reports === */}
+      <div className="bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-3">
+        <div className="text-[10px] font-black tracking-widest text-blue-900 mb-2 flex items-center gap-1">
+          <TrendingUp size={11} /> QUANTITIES FOR REPORTS <span className="text-slate-500 font-semibold ml-1">(optional)</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="SUPPORTS INSTALLED">
+            <input type="number" min="0" step="1" value={supports} onChange={(e) => setSupports(e.target.value)} className={inputCls} placeholder="0" />
+          </Field>
+          <Field label="LINEAR FEET (ft)">
+            <input type="number" min="0" step="0.5" value={linearFeet} onChange={(e) => setLinearFeet(e.target.value)} className={inputCls} placeholder="0" />
+          </Field>
+        </div>
       </div>
       <Field label="COMMENTS"><textarea value={comments} onChange={(e) => setComments(e.target.value)} className={inputCls + " resize-none"} rows={2} /></Field>
       <button onClick={submit} className={btnPrimaryFull}>{editing ? "SAVE CHANGES" : "REGISTER WELD"}</button>
@@ -2674,6 +2895,621 @@ function ToolsView({ role, currentUser, tools, welders, onAdd, onDelete, onReass
   );
 }
 
+// ============================================================
+// REPORTS VIEW — easy executive summaries for bosses & clients
+// ============================================================
+function ReportsView({ data, currentUser }) {
+  const [period, setPeriod] = useState("today");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+  const [expandedWelders, setExpandedWelders] = useState({});
+  const [showSystemsCard, setShowSystemsCard] = useState(false);
+  const [showIsosCard, setShowIsosCard] = useState(false);
+  const [showDailyTrend, setShowDailyTrend] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState("");
+  const toggleWelder = (id) => setExpandedWelders((p) => ({ ...p, [id]: !p[id] }));
+
+  // === Compute date range from preset ===
+  const today = new Date();
+  const toISO = (d) => d.toISOString().split("T")[0];
+  const addDays = (d, days) => { const n = new Date(d); n.setDate(n.getDate() + days); return n; };
+  const startOfWeek = (d) => { const n = new Date(d); const day = n.getDay() || 7; n.setDate(n.getDate() - day + 1); return n; };
+
+  const { start, end, label } = (() => {
+    const t = toISO(today);
+    if (period === "today") return { start: t, end: t, label: "TODAY" };
+    if (period === "yesterday") { const y = toISO(addDays(today, -1)); return { start: y, end: y, label: "YESTERDAY" }; }
+    if (period === "thisweek") { const s = toISO(startOfWeek(today)); return { start: s, end: t, label: "THIS WEEK" }; }
+    if (period === "lastweek") { const sow = startOfWeek(today); const s = toISO(addDays(sow, -7)); const e = toISO(addDays(sow, -1)); return { start: s, end: e, label: "LAST WEEK" }; }
+    if (period === "thismonth") { const s = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`; return { start: s, end: t, label: "THIS MONTH" }; }
+    if (period === "lastmonth") { const d = new Date(today.getFullYear(), today.getMonth() - 1, 1); const e = new Date(today.getFullYear(), today.getMonth(), 0); return { start: toISO(d), end: toISO(e), label: "LAST MONTH" }; }
+    if (period === "custom" && customStart && customEnd) return { start: customStart, end: customEnd, label: "CUSTOM" };
+    return { start: t, end: t, label: "TODAY" };
+  })();
+
+  // === Filter logs to range ===
+  const filteredLogs = (data.dailyLogs || []).filter((l) => l.date >= start && l.date <= end);
+
+  const getSystemFromEntry = (entry) => {
+    if (entry.system) return entry.system;
+    const iso = (data.isos || []).find((i) => i.number === entry.iso);
+    if (!iso) return "—";
+    const sys = (data.systems || []).find((s) => s.id === iso.systemId);
+    return sys?.name || "—";
+  };
+
+  // === Aggregate totals ===
+  const activeWelders = new Set();
+  const isosWorked = new Set();
+  const systemsWorked = new Set();
+  let totalWelds = 0, totalSupports = 0, totalLinearFeet = 0;
+  filteredLogs.forEach((l) => {
+    activeWelders.add(l.welderId);
+    (l.entries || []).forEach((e) => {
+      totalWelds++;
+      totalSupports += Number(e.supports) || 0;
+      totalLinearFeet += Number(e.linearFeet) || 0;
+      if (e.iso) isosWorked.add(e.iso);
+      const sys = getSystemFromEntry(e);
+      if (sys && sys !== "—") systemsWorked.add(sys);
+    });
+  });
+
+  // === Inspections in range ===
+  const inspectionsInRange = (data.inspections || []).filter((i) => {
+    if (!i.weldRef) return false;
+    const logId = i.weldRef.split("-")[0];
+    const log = (data.dailyLogs || []).find((l) => l.id === logId);
+    return log && log.date >= start && log.date <= end;
+  });
+  const accepted = inspectionsInRange.filter((i) => i.status === "accepted").length;
+  const rejected = inspectionsInRange.filter((i) => i.status === "rejected").length;
+  const inspTotal = accepted + rejected;
+  const passRate = inspTotal > 0 ? Math.round((accepted / inspTotal) * 100) : null;
+
+  // === Coupons in range ===
+  const couponsInRange = (data.coupons || []).filter((c) => {
+    const cd = (c.createdAt || "").split("T")[0];
+    return cd && cd >= start && cd <= end;
+  });
+
+  // === By welder breakdown (enriched: systems, isos, coupons per welder) ===
+  const welderBreakdown = (data.welders || []).map((w) => {
+    const wlogs = filteredLogs.filter((l) => l.welderId === w.id);
+    let welds = 0, supports = 0, linearFeet = 0;
+    const wSystems = new Set();
+    const wIsos = new Set();
+    const wIsoSizes = {}; // iso -> {welds, supports, linearFeet, systems}
+    wlogs.forEach((l) => (l.entries || []).forEach((e) => {
+      welds++;
+      supports += Number(e.supports) || 0;
+      linearFeet += Number(e.linearFeet) || 0;
+      const sys = getSystemFromEntry(e);
+      if (sys && sys !== "—") wSystems.add(sys);
+      if (e.iso) {
+        wIsos.add(e.iso);
+        if (!wIsoSizes[e.iso]) wIsoSizes[e.iso] = { welds: 0, supports: 0, linearFeet: 0 };
+        wIsoSizes[e.iso].welds++;
+        wIsoSizes[e.iso].supports += Number(e.supports) || 0;
+        wIsoSizes[e.iso].linearFeet += Number(e.linearFeet) || 0;
+      }
+    }));
+    const wInsp = inspectionsInRange.filter((i) => {
+      const logId = i.weldRef?.split("-")[0];
+      const log = filteredLogs.find((l) => l.id === logId);
+      return log && log.welderId === w.id;
+    });
+    const wAccepted = wInsp.filter((i) => i.status === "accepted").length;
+    const wRejected = wInsp.filter((i) => i.status === "rejected").length;
+    const wPassRate = (wAccepted + wRejected) > 0 ? Math.round((wAccepted / (wAccepted + wRejected)) * 100) : null;
+    const wCoupons = (data.coupons || []).filter((c) => {
+      const cd = (c.createdAt || "").split("T")[0];
+      return c.welderId === w.id && cd && cd >= start && cd <= end;
+    });
+    const wIsoRows = Object.entries(wIsoSizes).map(([num, v]) => ({ number: num, ...v })).sort((a, b) => b.welds - a.welds);
+    return {
+      welder: w, welds, supports, linearFeet,
+      systems: Array.from(wSystems).sort(),
+      isos: Array.from(wIsos),
+      isoRows: wIsoRows,
+      coupons: wCoupons.length,
+      passRate: wPassRate,
+      rejections: wRejected,
+      inspTotal: wAccepted + wRejected,
+      accepted: wAccepted,
+    };
+  }).filter((r) => r.welds > 0 || r.supports > 0 || r.linearFeet > 0)
+    .sort((a, b) => b.welds - a.welds);
+
+  // === By system breakdown ===
+  const systemBreakdown = {};
+  filteredLogs.forEach((l) => (l.entries || []).forEach((e) => {
+    const sys = getSystemFromEntry(e);
+    if (!systemBreakdown[sys]) systemBreakdown[sys] = { welds: 0, supports: 0, linearFeet: 0 };
+    systemBreakdown[sys].welds++;
+    systemBreakdown[sys].supports += Number(e.supports) || 0;
+    systemBreakdown[sys].linearFeet += Number(e.linearFeet) || 0;
+  }));
+  const systemRows = Object.entries(systemBreakdown).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.welds - a.welds);
+
+  // === By ISO breakdown ===
+  const isoBreakdown = {};
+  filteredLogs.forEach((l) => (l.entries || []).forEach((e) => {
+    if (!e.iso) return;
+    if (!isoBreakdown[e.iso]) isoBreakdown[e.iso] = { welds: 0, supports: 0, linearFeet: 0 };
+    isoBreakdown[e.iso].welds++;
+    isoBreakdown[e.iso].supports += Number(e.supports) || 0;
+    isoBreakdown[e.iso].linearFeet += Number(e.linearFeet) || 0;
+  }));
+  const isoRows = Object.entries(isoBreakdown).map(([number, v]) => ({ number, ...v })).sort((a, b) => b.welds - a.welds);
+
+  // === Daily trend ===
+  const dailyTrend = {};
+  filteredLogs.forEach((l) => {
+    if (!dailyTrend[l.date]) dailyTrend[l.date] = { welds: 0, supports: 0, linearFeet: 0 };
+    (l.entries || []).forEach((e) => {
+      dailyTrend[l.date].welds++;
+      dailyTrend[l.date].supports += Number(e.supports) || 0;
+      dailyTrend[l.date].linearFeet += Number(e.linearFeet) || 0;
+    });
+  });
+  const trendRows = Object.entries(dailyTrend).map(([date, v]) => ({ date, ...v })).sort((a, b) => a.date.localeCompare(b.date));
+  const maxDailyWelds = Math.max(1, ...trendRows.map((r) => r.welds));
+
+  const fmtDate = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const fmtDateRange = () => start === end ? fmtDate(start) : `${fmtDate(start)} — ${fmtDate(end)}`;
+  const fmtNum = (n) => Number(n).toLocaleString("en-US");
+
+  // === COPY SUMMARY (WhatsApp-ready) ===
+  const copySummary = () => {
+    const topWelder = welderBreakdown[0];
+    const welderNames = welderBreakdown.slice(0, 6).map((w) => w.welder.name.split(" ")[0]).join(", ");
+    const text = `📊 WELD REPORT — ${label}
+${fmtDateRange()}
+
+✅ ${fmtNum(totalWelds)} welds completed
+🔧 ${fmtNum(totalSupports)} supports installed
+📏 ${fmtNum(totalLinearFeet)} ft of pipe
+👷 ${activeWelders.size} welders active${welderNames ? ` (${welderNames})` : ""}
+📋 ${isosWorked.size} ISOs advanced
+🧪 ${couponsInRange.length} coupons tested
+${passRate !== null ? `✓ ${passRate}% inspection pass rate${rejected > 0 ? ` (${rejected} rejection${rejected === 1 ? "" : "s"})` : ""}` : "✓ No inspections yet"}
+${topWelder ? `\n🏆 Top performer: ${topWelder.welder.name} — ${fmtNum(topWelder.welds)} welds` : ""}
+📂 Systems: ${Array.from(systemsWorked).join(", ") || "—"}
+
+— Generated by SWCS`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyFeedback("✅ Copied! Paste in WhatsApp, email, or text.");
+      setTimeout(() => setCopyFeedback(""), 3500);
+    }).catch(() => {
+      setCopyFeedback("⚠️ Could not copy. Please select & copy manually.");
+      setTimeout(() => setCopyFeedback(""), 3500);
+    });
+  };
+
+  const copyDetailed = () => {
+    let text = `📊 DETAILED WELD REPORT — ${label}\n${fmtDateRange()}\n\nTOTALS\n`;
+    text += `• ${fmtNum(totalWelds)} welds · ${fmtNum(totalSupports)} supports · ${fmtNum(totalLinearFeet)} ft\n`;
+    text += `• ${activeWelders.size} welders · ${isosWorked.size} ISOs · ${couponsInRange.length} coupons\n`;
+    if (passRate !== null) text += `• ${passRate}% pass rate (${accepted} accepted · ${rejected} rejected)\n`;
+    text += `\n`;
+    if (welderBreakdown.length > 0) {
+      text += `BY WELDER\n`;
+      welderBreakdown.forEach((w) => {
+        text += `• ${w.welder.name}: ${w.welds} welds, ${w.supports} supports, ${w.linearFeet} ft`;
+        if (w.rejections > 0) text += ` · ⚠️ ${w.rejections} rejected`;
+        text += `\n`;
+      });
+      text += `\n`;
+    }
+    if (systemRows.length > 0) {
+      text += `BY SYSTEM\n`;
+      systemRows.forEach((s) => { text += `• ${s.name}: ${s.welds} welds, ${s.supports} supports, ${s.linearFeet} ft\n`; });
+    }
+    text += `\n— Generated by SWCS`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyFeedback("✅ Detailed report copied.");
+      setTimeout(() => setCopyFeedback(""), 3500);
+    });
+  };
+
+  const exportCSV = () => {
+    const rows = [["Date", "Welder", "ISO", "Weld #", "Size", "System", "Supports", "Linear Feet", "Comments"]];
+    filteredLogs.forEach((l) => {
+      const w = (data.welders || []).find((x) => x.id === l.welderId);
+      (l.entries || []).forEach((e) => {
+        rows.push([
+          l.date, w?.name || "", e.iso || "", e.weldNumber || "", e.size || "",
+          getSystemFromEntry(e), e.supports || 0, e.linearFeet || 0,
+          (e.comments || "").replace(/"/g, '""').replace(/[\r\n]+/g, " "),
+        ]);
+      });
+    });
+    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `swcs_report_${start}_to_${end}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPDF = () => {
+    const w = window.open("", "_blank");
+    const welderRowsHTML = welderBreakdown.map((r) => `<tr><td style="font-weight:700">${r.welder.name}</td><td style="text-align:right">${fmtNum(r.welds)}</td><td style="text-align:right">${fmtNum(r.supports)}</td><td style="text-align:right">${fmtNum(r.linearFeet)}</td><td style="text-align:right">${r.passRate !== null ? r.passRate + "%" : "—"}</td></tr>`).join("");
+    const systemRowsHTML = systemRows.map((r) => `<tr><td style="font-weight:700">${r.name}</td><td style="text-align:right">${fmtNum(r.welds)}</td><td style="text-align:right">${fmtNum(r.supports)}</td><td style="text-align:right">${fmtNum(r.linearFeet)}</td></tr>`).join("");
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Weld Report — ${label} — ${fmtDateRange()}</title>
+<style>@page{size:letter;margin:0.5in}body{font-family:Helvetica,Arial,sans-serif;color:#0f172a;margin:0;padding:0}
+.pb{position:fixed;top:0;left:0;right:0;background:#1e3a8a;color:white;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;z-index:1000}
+.pb button{padding:8px 16px;border-radius:6px;border:none;font-weight:700;cursor:pointer;font-size:13px;letter-spacing:1px}
+.print-btn{background:#10b981;color:white}.close-btn{background:#ef4444;color:white;margin-left:8px}
+.content{padding-top:70px;max-width:7.5in;margin:0 auto;padding-left:0.25in;padding-right:0.25in}
+@media print{.no-print{display:none !important}.content{padding-top:0}}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:2px solid #1e3a8a;margin-bottom:20px}
+.hdr .logo{font-size:28pt;font-weight:900;color:#1e3a8a;letter-spacing:-1pt}
+.hdr .tag{font-size:7pt;color:#64748b;letter-spacing:3pt;text-transform:uppercase;font-weight:600}
+.hdr .meta{text-align:right;font-size:9pt;color:#334155}
+h1{font-size:22pt;font-weight:900;color:#0f172a;margin:0 0 4px 0}
+.sub{font-size:11pt;color:#64748b;font-weight:600;margin-bottom:24px}
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+.kpi{background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #93c5fd;border-radius:8pt;padding:14pt;text-align:center}
+.kpi .num{font-size:28pt;font-weight:900;color:#1e40af;line-height:1}
+.kpi .lbl{font-size:8pt;color:#1e3a8a;letter-spacing:1.5pt;font-weight:800;text-transform:uppercase;margin-top:6pt}
+.section-title{font-size:12pt;font-weight:900;color:#0f172a;letter-spacing:1pt;text-transform:uppercase;margin:20pt 0 8pt 0;padding-bottom:4pt;border-bottom:1px solid #cbd5e1}
+table{width:100%;border-collapse:collapse;margin-bottom:16pt;font-size:10pt}
+th{background:#1e3a8a;color:white;padding:8pt;font-size:8pt;font-weight:700;letter-spacing:1pt;text-align:left;text-transform:uppercase}
+th:not(:first-child){text-align:right}
+td{padding:7pt 8pt;border-bottom:1px solid #e2e8f0}
+tr:nth-child(even) td{background:#f8fafc}
+.ft{margin-top:24pt;padding-top:12pt;border-top:1px solid #cbd5e1;font-size:8pt;color:#64748b;text-align:center}
+</style></head><body>
+<div class="pb no-print"><div style="font-weight:700;letter-spacing:2px">📊 WELD REPORT — ${label}</div><div><button class="print-btn" onclick="window.print()">🖨️ PRINT / SAVE PDF</button><button class="close-btn" onclick="window.close()">✕ CLOSE</button></div></div>
+<div class="content">
+<div class="hdr"><div><div class="logo">SWCS</div><div class="tag">Sanitary Weld Control System</div></div><div class="meta"><div><strong>Report Period:</strong> ${label}</div><div>${fmtDateRange()}</div><div style="margin-top:6pt;font-size:8pt;color:#94a3b8">Generated ${new Date().toLocaleString("en-US")}</div></div></div>
+<h1>Project Progress Report</h1>
+<div class="sub">${fmtDateRange()}</div>
+<div class="kpi-grid">
+<div class="kpi"><div class="num">${fmtNum(totalWelds)}</div><div class="lbl">Welds Completed</div></div>
+<div class="kpi"><div class="num">${fmtNum(totalSupports)}</div><div class="lbl">Supports Installed</div></div>
+<div class="kpi"><div class="num">${fmtNum(totalLinearFeet)}</div><div class="lbl">Linear Feet</div></div>
+<div class="kpi"><div class="num">${activeWelders.size}</div><div class="lbl">Active Welders</div></div>
+<div class="kpi"><div class="num">${isosWorked.size}</div><div class="lbl">ISOs Advanced</div></div>
+<div class="kpi"><div class="num">${passRate !== null ? passRate + "%" : "—"}</div><div class="lbl">Pass Rate</div></div>
+</div>
+${welderBreakdown.length > 0 ? `<div class="section-title">Breakdown by Welder</div>
+<table><thead><tr><th>Welder</th><th>Welds</th><th>Supports</th><th>Linear Feet</th><th>Pass Rate</th></tr></thead>
+<tbody>${welderRowsHTML}</tbody></table>` : ""}
+${systemRows.length > 0 ? `<div class="section-title">Breakdown by System</div>
+<table><thead><tr><th>System</th><th>Welds</th><th>Supports</th><th>Linear Feet</th></tr></thead>
+<tbody>${systemRowsHTML}</tbody></table>` : ""}
+<div class="ft">Report generated by SWCS · Sanitary Weld Control System · ${new Date().toISOString().split("T")[0]}</div>
+</div></body></html>`;
+    w.document.write(html);
+    w.document.close();
+  };
+
+  return (
+    <div className="space-y-4 pb-24">
+      {/* === TOP === */}
+      <div className="flex justify-between items-start flex-wrap gap-2">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900">REPORTS</h2>
+          <p className="text-slate-500 text-xs tracking-wider font-semibold">
+            WELDS · SUPPORTS · LINEAR FEET — BY WELDER AND COMBINED TOTALS
+          </p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={copySummary} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold tracking-widest px-3 py-2 rounded transition-all hover:scale-[1.02] flex items-center gap-1 shadow-sm">
+            <ClipboardList size={11} /> COPY FOR WHATSAPP
+          </button>
+          <button onClick={copyDetailed} className="bg-slate-700 hover:bg-slate-800 text-white text-[10px] font-bold tracking-widest px-3 py-2 rounded transition-colors flex items-center gap-1 shadow-sm">
+            <FileText size={11} /> COPY DETAILED
+          </button>
+          <button onClick={exportCSV} className="bg-blue-700 hover:bg-blue-800 text-white text-[10px] font-bold tracking-widest px-3 py-2 rounded transition-colors flex items-center gap-1 shadow-sm">
+            <Download size={11} /> EXPORT CSV
+          </button>
+          <button onClick={exportPDF} className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-[10px] font-bold tracking-widest px-3 py-2 rounded transition-all hover:scale-[1.02] flex items-center gap-1 shadow-sm">
+            <FileCheck size={11} /> EXPORT PDF
+          </button>
+        </div>
+      </div>
+
+      {copyFeedback && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold px-4 py-2 rounded flex items-center gap-2">
+          <CheckCircle2 size={14} /> {copyFeedback}
+        </div>
+      )}
+
+      {/* === PERIOD SELECTOR === */}
+      <div className="bg-white border border-slate-200 rounded-lg p-3">
+        <div className="text-[10px] font-black tracking-widest text-slate-500 mb-2">REPORT PERIOD</div>
+        <div className="flex flex-wrap gap-2">
+          {[["today","TODAY"],["yesterday","YESTERDAY"],["thisweek","THIS WEEK"],["lastweek","LAST WEEK"],["thismonth","THIS MONTH"],["lastmonth","LAST MONTH"],["custom","CUSTOM"]].map(([id, lbl]) => (
+            <button key={id} onClick={() => setPeriod(id)}
+              className={`text-[10px] font-black tracking-widest px-3 py-2 rounded border transition-all ${period === id ? "bg-blue-700 border-blue-700 text-white shadow-sm" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+        {period === "custom" && (
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <Field label="FROM"><input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className={inputCls} /></Field>
+            <Field label="TO"><input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className={inputCls} /></Field>
+          </div>
+        )}
+        <div className="mt-3 text-xs text-slate-600 font-semibold">
+          Showing: <span className="text-blue-700 font-bold">{fmtDateRange()}</span>
+          <span className="text-slate-400"> · {filteredLogs.length} daily logs</span>
+        </div>
+      </div>
+
+      {/* === WELDER CARDS (Daily Log style) === */}
+      {welderBreakdown.length > 0 ? (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Users size={14} className="text-slate-500" />
+            <span className="text-xs font-black tracking-widest text-slate-500">BY WELDER ({welderBreakdown.length})</span>
+          </div>
+          <div className="space-y-2">
+            {welderBreakdown.map((r, i) => {
+              const isExpanded = expandedWelders[r.welder.id];
+              const passColor = r.passRate === null ? "text-slate-400" : r.passRate >= 90 ? "text-emerald-700" : r.passRate >= 70 ? "text-amber-700" : "text-red-700";
+              return (
+                <div key={r.welder.id} className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => toggleWelder(r.welder.id)}
+                    className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-11 h-11 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0 relative">
+                        <HardHat size={20} />
+                        {i === 0 && welderBreakdown.length > 1 && (
+                          <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[8px] font-black rounded-full w-5 h-5 flex items-center justify-center shadow">1</span>
+                        )}
+                      </div>
+                      <div className="text-left min-w-0">
+                        <div className="font-bold text-slate-900 truncate">{r.welder.name}</div>
+                        <div className="text-xs text-slate-500 font-mono">#{r.welder.welderId}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="hidden sm:flex gap-1.5">
+                        <span className="bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-black px-2 py-1 rounded-full tracking-wider">
+                          {fmtNum(r.welds)} WELDS
+                        </span>
+                        <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-black px-2 py-1 rounded-full tracking-wider">
+                          {fmtNum(r.supports)} SUP
+                        </span>
+                        <span className="bg-purple-50 border border-purple-200 text-purple-700 text-[10px] font-black px-2 py-1 rounded-full tracking-wider">
+                          {fmtNum(r.linearFeet)} FT
+                        </span>
+                        {r.passRate !== null && (
+                          <span className={`bg-white border border-slate-200 text-[10px] font-black px-2 py-1 rounded-full tracking-wider ${passColor}`}>
+                            {r.passRate}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="sm:hidden flex gap-1 text-[10px] font-black">
+                        <span className="text-blue-700">{fmtNum(r.welds)}W</span>
+                        <span className="text-emerald-700">{fmtNum(r.supports)}S</span>
+                        <span className="text-purple-700">{fmtNum(r.linearFeet)}&apos;</span>
+                      </div>
+                      {isExpanded ? <ChevronDown size={18} className="text-slate-400" /> : <ChevronRight size={18} className="text-slate-400" />}
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t border-slate-100 bg-slate-50 p-5 space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div className="bg-white border-l-4 border-blue-500 rounded p-3 shadow-sm">
+                          <div className="text-[9px] font-black tracking-widest text-blue-700">WELDS</div>
+                          <div className="text-3xl font-black text-blue-900 mt-1">{fmtNum(r.welds)}</div>
+                        </div>
+                        <div className="bg-white border-l-4 border-emerald-500 rounded p-3 shadow-sm">
+                          <div className="text-[9px] font-black tracking-widest text-emerald-700">SUPPORTS</div>
+                          <div className="text-3xl font-black text-emerald-900 mt-1">{fmtNum(r.supports)}</div>
+                        </div>
+                        <div className="bg-white border-l-4 border-purple-500 rounded p-3 shadow-sm">
+                          <div className="text-[9px] font-black tracking-widest text-purple-700">LINEAR FEET</div>
+                          <div className="text-3xl font-black text-purple-900 mt-1">{fmtNum(r.linearFeet)}</div>
+                        </div>
+                        <div className={`bg-white border-l-4 rounded p-3 shadow-sm ${r.passRate === null ? "border-slate-300" : r.passRate >= 90 ? "border-emerald-500" : r.passRate >= 70 ? "border-amber-500" : "border-red-500"}`}>
+                          <div className={`text-[9px] font-black tracking-widest ${passColor}`}>PASS RATE</div>
+                          <div className={`text-3xl font-black mt-1 ${r.passRate === null ? "text-slate-400" : r.passRate >= 90 ? "text-emerald-900" : r.passRate >= 70 ? "text-amber-900" : "text-red-900"}`}>
+                            {r.passRate !== null ? r.passRate + "%" : "—"}
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                            {r.inspTotal > 0 ? `${r.accepted}/${r.inspTotal} welds` : "no inspections"}
+                            {r.rejections > 0 && <span className="ml-1 text-red-600 font-bold">⚠ {r.rejections} rej.</span>}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                        <div className="bg-white rounded p-3 border border-slate-200">
+                          <div className="text-[9px] font-black tracking-widest text-slate-500 mb-1">SYSTEMS WORKED</div>
+                          <div className="font-mono font-bold text-blue-700 text-sm">
+                            {r.systems.length > 0 ? r.systems.join(" · ") : <span className="text-slate-400">—</span>}
+                          </div>
+                        </div>
+                        <div className="bg-white rounded p-3 border border-slate-200">
+                          <div className="text-[9px] font-black tracking-widest text-slate-500 mb-1">ISOs ADVANCED</div>
+                          <div className="font-bold text-slate-900 text-sm">{r.isos.length} <span className="text-slate-500 font-normal">ISO{r.isos.length === 1 ? "" : "s"}</span></div>
+                        </div>
+                        <div className="bg-white rounded p-3 border border-slate-200">
+                          <div className="text-[9px] font-black tracking-widest text-slate-500 mb-1">COUPONS TESTED</div>
+                          <div className="font-bold text-slate-900 text-sm">{r.coupons}</div>
+                        </div>
+                      </div>
+
+                      {r.isoRows.length > 0 && (
+                        <div className="bg-white rounded border border-slate-200 overflow-hidden">
+                          <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 text-[10px] font-black tracking-widest text-slate-600">
+                            PER-ISO BREAKDOWN
+                          </div>
+                          <div className="max-h-64 overflow-y-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-slate-50 sticky top-0">
+                                <tr>
+                                  <th className="px-4 py-2 text-left text-[9px] font-black tracking-widest text-slate-500">ISO</th>
+                                  <th className="px-4 py-2 text-right text-[9px] font-black tracking-widest text-slate-500">WELDS</th>
+                                  <th className="px-4 py-2 text-right text-[9px] font-black tracking-widest text-slate-500">SUPPORTS</th>
+                                  <th className="px-4 py-2 text-right text-[9px] font-black tracking-widest text-slate-500">FEET</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {r.isoRows.map((row) => (
+                                  <tr key={row.number} className="hover:bg-slate-50 border-b border-slate-100 last:border-b-0">
+                                    <td className="px-4 py-2 font-mono font-bold text-blue-700 text-xs">{row.number}</td>
+                                    <td className="px-4 py-2 text-right font-mono font-bold text-slate-900">{fmtNum(row.welds)}</td>
+                                    <td className="px-4 py-2 text-right font-mono text-emerald-700">{fmtNum(row.supports)}</td>
+                                    <td className="px-4 py-2 text-right font-mono text-purple-700">{fmtNum(row.linearFeet)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : filteredLogs.length === 0 ? (
+        <div className="bg-white border border-dashed border-slate-300 rounded-lg p-10 text-center">
+          <FileText size={40} className="mx-auto text-slate-300 mb-3" />
+          <div className="text-slate-500 font-bold text-sm">No daily logs in this period</div>
+          <div className="text-slate-400 text-xs mt-1">Try selecting a different date range above</div>
+        </div>
+      ) : null}
+
+      {systemRows.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+          <button onClick={() => setShowSystemsCard(!showSystemsCard)} className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50">
+            <div className="flex items-center gap-2">
+              <Layers size={16} className="text-blue-700" />
+              <span className="font-black text-slate-900 text-sm">BY SYSTEM</span>
+              <span className="text-xs text-slate-500">({systemRows.length})</span>
+            </div>
+            {showSystemsCard ? <ChevronDown size={18} className="text-slate-400" /> : <ChevronRight size={18} className="text-slate-400" />}
+          </button>
+          {showSystemsCard && (
+            <div className="overflow-x-auto border-t border-slate-100">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-[10px] font-black tracking-widest text-slate-500">SYSTEM</th>
+                    <th className="px-4 py-2 text-right text-[10px] font-black tracking-widest text-slate-500">WELDS</th>
+                    <th className="px-4 py-2 text-right text-[10px] font-black tracking-widest text-slate-500">SUPPORTS</th>
+                    <th className="px-4 py-2 text-right text-[10px] font-black tracking-widest text-slate-500">LINEAR FEET</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {systemRows.map((r) => (
+                    <tr key={r.name} className="hover:bg-slate-50 border-b border-slate-100 last:border-b-0">
+                      <td className="px-4 py-2 font-mono font-bold text-blue-700">{r.name}</td>
+                      <td className="px-4 py-2 text-right font-mono font-bold">{fmtNum(r.welds)}</td>
+                      <td className="px-4 py-2 text-right font-mono text-emerald-700">{fmtNum(r.supports)}</td>
+                      <td className="px-4 py-2 text-right font-mono text-purple-700">{fmtNum(r.linearFeet)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {trendRows.length > 1 && (
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+          <button onClick={() => setShowDailyTrend(!showDailyTrend)} className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={16} className="text-blue-700" />
+              <span className="font-black text-slate-900 text-sm">DAILY TREND</span>
+              <span className="text-xs text-slate-500">({trendRows.length} days)</span>
+            </div>
+            {showDailyTrend ? <ChevronDown size={18} className="text-slate-400" /> : <ChevronRight size={18} className="text-slate-400" />}
+          </button>
+          {showDailyTrend && (
+            <div className="p-4 border-t border-slate-100 space-y-2">
+              {trendRows.map((r) => (
+                <div key={r.date} className="flex items-center gap-3">
+                  <div className="w-24 text-xs font-mono text-slate-600 flex-shrink-0">{fmtDate(r.date)}</div>
+                  <div className="flex-1 bg-slate-100 rounded h-6 relative overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-blue-600 to-blue-500" style={{ width: `${(r.welds / maxDailyWelds) * 100}%` }} />
+                    <div className="absolute inset-0 flex items-center px-2 text-[10px] font-bold text-white mix-blend-difference">
+                      {r.welds} welds · {r.supports} sup · {r.linearFeet} ft
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* === BIG TOTALS CARD (bottom) === */}
+      {filteredLogs.length > 0 && (
+        <div className="bg-gradient-to-br from-blue-900 via-slate-900 to-slate-900 text-white rounded-xl p-5 shadow-xl ring-1 ring-blue-500/30">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center">
+              <TrendingUp size={20} className="text-blue-300" />
+            </div>
+            <div>
+              <div className="text-[10px] font-black tracking-[3pt] text-blue-200">TOTAL — ALL WELDERS COMBINED</div>
+              <div className="text-sm font-bold text-white">{label} · {fmtDateRange()}</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
+              <div className="text-[10px] font-black tracking-widest text-blue-200">WELDS</div>
+              <div className="text-4xl font-black text-white mt-1">{fmtNum(totalWelds)}</div>
+              <div className="text-[10px] text-blue-200/80 mt-0.5 font-semibold">completed</div>
+            </div>
+            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
+              <div className="text-[10px] font-black tracking-widest text-emerald-200">SUPPORTS</div>
+              <div className="text-4xl font-black text-emerald-300 mt-1">{fmtNum(totalSupports)}</div>
+              <div className="text-[10px] text-emerald-200/80 mt-0.5 font-semibold">installed</div>
+            </div>
+            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
+              <div className="text-[10px] font-black tracking-widest text-purple-200">LINEAR FEET</div>
+              <div className="text-4xl font-black text-purple-300 mt-1">{fmtNum(totalLinearFeet)}</div>
+              <div className="text-[10px] text-purple-200/80 mt-0.5 font-semibold">of pipe</div>
+            </div>
+            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
+              <div className={`text-[10px] font-black tracking-widest ${passRate === null ? "text-slate-300" : passRate >= 90 ? "text-emerald-200" : passRate >= 70 ? "text-amber-200" : "text-red-200"}`}>PASS RATE</div>
+              <div className={`text-4xl font-black mt-1 ${passRate === null ? "text-slate-400" : passRate >= 90 ? "text-emerald-300" : passRate >= 70 ? "text-amber-300" : "text-red-300"}`}>
+                {passRate !== null ? passRate + "%" : "—"}
+              </div>
+              <div className="text-[10px] text-slate-300 mt-0.5 font-semibold">
+                {inspTotal > 0 ? `${accepted}/${inspTotal} welds` : "no inspections"}
+                {rejected > 0 && <span className="ml-1 text-red-300">⚠ {rejected}</span>}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-white/10 text-xs text-blue-100 flex flex-wrap gap-x-6 gap-y-1.5">
+            <span>👷 <strong className="text-white">{activeWelders.size}</strong> welders active</span>
+            <span>📋 <strong className="text-white">{isosWorked.size}</strong> ISOs advanced</span>
+            <span>🧪 <strong className="text-white">{couponsInRange.length}</strong> coupons tested</span>
+            <span>📂 Systems: <strong className="text-white">{Array.from(systemsWorked).join(", ") || "—"}</strong></span>
+          </div>
+          {welderBreakdown[0] && welderBreakdown.length > 1 && (
+            <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2 text-xs">
+              <span className="text-amber-300 text-base">🏆</span>
+              <span className="text-blue-100">Top performer:</span>
+              <strong className="text-white">{welderBreakdown[0].welder.name}</strong>
+              <span className="text-blue-200">— {fmtNum(welderBreakdown[0].welds)} welds, {fmtNum(welderBreakdown[0].linearFeet)} ft</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ChartsView({ data, getEntryRef }) {
   const [dateRange, setDateRange] = useState("all");
   const [selectedWelder, setSelectedWelder] = useState("all");
@@ -3541,7 +4377,7 @@ function MyIsosView({ currentUser, isos, systems, onAddPhoto, onDeletePhoto }) {
 }
 
 // ===================== PROJECT MAP VIEW =====================
-function ProjectMapView({ project, isos, welders, dailyLogs, inspections, onSaveProject, onAddZone, onUpdateZone, onDeleteZone, onAddPhoto, onDeletePhoto }) {
+function ProjectMapView({ project, isos, welders, dailyLogs, inspections, onSaveProject, onAddZone, onUpdateZone, onDeleteZone, onAddPhoto, onDeletePhoto, onAutoAssign }) {
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [drawingRect, setDrawingRect] = useState(null); // {startX, startY, endX, endY}
@@ -3708,6 +4544,15 @@ function ProjectMapView({ project, isos, welders, dailyLogs, inspections, onSave
           <button onClick={() => setShowSetupModal(true)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold tracking-widest px-3 py-2 rounded border border-slate-200 transition-colors flex items-center gap-1">
             <Edit2 size={11} /> EDIT PROJECT
           </button>
+          {onAutoAssign && (
+            <button
+              onClick={onAutoAssign}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-[10px] font-bold tracking-widest px-3 py-2 rounded shadow-sm transition-all hover:scale-[1.02] flex items-center gap-1"
+              title="Auto-assign existing ISOs to zones using each zone's pattern"
+            >
+              <Activity size={11} /> AUTO-ASSIGN ISOs
+            </button>
+          )}
           <button onClick={() => setEditMode(!editMode)} className={`text-[10px] font-bold tracking-widest px-3 py-2 rounded transition-colors flex items-center gap-1 ${editMode ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-blue-700 hover:bg-blue-800 text-white"}`}>
             {editMode ? <><CheckCircle2 size={11} /> DONE EDITING</> : <><Square size={11} /> DRAW ZONES</>}
           </button>
@@ -4042,11 +4887,15 @@ function ZoneModal({ zone, rect, isos, welders, onSave, onClose }) {
   const [description, setDescription] = useState(zone?.description || "");
   const [deadline, setDeadline] = useState(zone?.deadline || "");
   const [welderId, setWelderId] = useState(zone?.welderId || "");
+  const [isoPattern, setIsoPattern] = useState(zone?.isoPattern || "");
   const [isoIds, setIsoIds] = useState(zone?.isoIds || []);
   const [search, setSearch] = useState("");
   const toggleIso = (id) => setIsoIds(isoIds.includes(id) ? isoIds.filter((x) => x !== id) : [...isoIds, id]);
-  const submit = () => { if (!name.trim()) { alert("Zone name is required"); return; } onSave({ name: name.trim(), description: description.trim(), deadline, welderId: welderId || null, isoIds }); };
+  const submit = () => { if (!name.trim()) { alert("Zone name is required"); return; } onSave({ name: name.trim(), description: description.trim(), deadline, welderId: welderId || null, isoPattern: isoPattern.trim(), isoIds }); };
   const filteredIsos = isos.filter((i) => !search || i.number.toLowerCase().includes(search.toLowerCase()));
+  // Preview which ISOs will match the pattern (live)
+  const patternRegex = patternToRegex(isoPattern);
+  const patternMatches = patternRegex ? isos.filter((i) => patternRegex.test(i.number)) : [];
   return (
     <ModalShell title={zone ? "EDIT ZONE" : "NEW ZONE"} onClose={onClose}>
       <Field label="ZONE NAME *"><input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} placeholder="e.g. Mezzanine, Clean Room A" autoFocus /></Field>
@@ -4060,7 +4909,35 @@ function ZoneModal({ zone, rect, isos, welders, onSave, onClose }) {
           </select>
         </Field>
       </div>
-      <Field label={`ASSIGN ISOs (${isoIds.length} selected)`}>
+      {/* === AUTO-ASSIGN BY PATTERN === */}
+      <div className="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-purple-600 text-white rounded flex items-center justify-center text-[10px] font-black">AI</div>
+          <div className="text-xs font-black tracking-widest text-purple-900">AUTO-ASSIGN ISOs BY PATTERN</div>
+        </div>
+        <input
+          value={isoPattern}
+          onChange={(e) => setIsoPattern(e.target.value)}
+          className={inputCls + " font-mono text-xs"}
+          placeholder="e.g. 737-102*  or  *HPUR*  or  737-*-RV-*"
+        />
+        <div className="text-[10px] text-slate-600 leading-relaxed">
+          <strong>Use <code className="bg-white px-1 rounded">*</code> as a wildcard.</strong> Any new ISO whose number matches this pattern will auto-populate into this zone.
+          {isoPattern.trim() && (
+            <div className="mt-1 pt-1 border-t border-purple-200">
+              <span className="font-bold text-purple-800">
+                {patternMatches.length === 0 ? "⚠️ No existing ISOs match this pattern yet." : `✅ ${patternMatches.length} existing ISO${patternMatches.length === 1 ? "" : "s"} match this pattern.`}
+              </span>
+              {patternMatches.length > 0 && patternMatches.length <= 6 && (
+                <div className="mt-1 font-mono text-[9px] text-slate-700">
+                  {patternMatches.map((i) => i.number).join(" · ")}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      <Field label={`MANUAL ASSIGN ISOs (${isoIds.length} selected)`}>
         <input value={search} onChange={(e) => setSearch(e.target.value)} className={inputCls + " mb-2"} placeholder="Search ISOs..." />
         <div className="max-h-48 overflow-y-auto border border-slate-200 rounded">
           {filteredIsos.length === 0 ? (
