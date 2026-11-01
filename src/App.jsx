@@ -668,22 +668,56 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
       { id: "s4", name: "RO" }, { id: "s5", name: "CIPS" }, { id: "s6", name: "CIPR" },
     ];
 
+    // Each ISO has `expectedWelds` (realistic max = 5-10 per ISO).
+    // 40 ISOs so welders rotate — some will complete, some half-done, some barely started.
     const isos = [
-      { id: "i01", number: "2.00-RV-SS12-3035001-N-4", systemId: "s1", size: '2.00"', page: "4", welderId: "w1", description: "WARP10 Hygienic - RV distribution line" },
-      { id: "i02", number: "2.00-RV-SS12-3035002-N-4", systemId: "s1", size: '2.00"', page: "4", welderId: "w1", description: "WARP10 Hygienic - RV return loop" },
-      { id: "i03", number: "2.00-RV-SS12-3035036-N-5", systemId: "s1", size: '2.00"', page: "5", welderId: "w1", description: "WARP10 Hygienic - RV platform connection" },
-      { id: "i04", number: "1.50-HPUR-SS12-3012010-N-2", systemId: "s2", size: '1.50"', page: "2", welderId: "w2", description: "HPUR skid tie-in" },
-      { id: "i05", number: "1.50-HPUR-SS12-3012011-N-2", systemId: "s2", size: '1.50"', page: "2", welderId: "w2", description: "HPUR distribution branch" },
-      { id: "i06", number: "3.00-HPUR-SS12-3012020-N-3", systemId: "s2", size: '3.00"', page: "3", welderId: "w3", description: "HPUR main header" },
-      { id: "i07", number: "3.00-HPUR-SS12-3012021-N-3", systemId: "s2", size: '3.00"', page: "3", welderId: "w3", description: "HPUR header continuation" },
-      { id: "i08", number: "1.00-PV-SS12-3045101-N-1", systemId: "s3", size: '1.00"', page: "1", welderId: "w4", description: "PV sample port" },
-      { id: "i09", number: "2.00-PV-SS12-3045102-N-2", systemId: "s3", size: '2.00"', page: "2", welderId: "w4", description: "PV main line" },
-      { id: "i10", number: "1.50-RO-SS12-3067010-N-1", systemId: "s4", size: '1.50"', page: "1", welderId: "w5", description: "RO water supply" },
-      { id: "i11", number: "1.50-RO-SS12-3067011-N-1", systemId: "s4", size: '1.50"', page: "1", welderId: "w5", description: "RO return" },
-      { id: "i12", number: "4.00-CIPS-SS12-3089001-N-6", systemId: "s5", size: '4.00"', page: "6", welderId: "w6", description: "CIP supply header" },
-      { id: "i13", number: "4.00-CIPR-SS12-3089002-N-6", systemId: "s6", size: '4.00"', page: "6", welderId: "w6", description: "CIP return header" },
-      { id: "i14", number: "2.00-RV-SS12-3035040-N-7", systemId: "s1", size: '2.00"', page: "7", welderId: "w7", description: "RV sampling branch" },
-      { id: "i15", number: "1.00-HPUR-SS12-3012030-N-4", systemId: "s2", size: '1.00"', page: "4", welderId: "w8", description: "HPUR point of use" },
+      // Hector (w1) — RV system
+      { id: "i01", number: "2.00-RV-SS12-3035001-N-4", systemId: "s1", size: '2.00"', page: "4", welderId: "w1", expectedWelds: 8,  description: "RV distribution line" },
+      { id: "i02", number: "2.00-RV-SS12-3035002-N-4", systemId: "s1", size: '2.00"', page: "4", welderId: "w1", expectedWelds: 10, description: "RV return loop" },
+      { id: "i03", number: "2.00-RV-SS12-3035036-N-5", systemId: "s1", size: '2.00"', page: "5", welderId: "w1", expectedWelds: 7,  description: "RV platform connection" },
+      { id: "i16", number: "2.00-RV-SS12-3035037-N-5", systemId: "s1", size: '2.00"', page: "5", welderId: "w1", expectedWelds: 9,  description: "RV upper distribution" },
+      { id: "i17", number: "2.00-RV-SS12-3035038-N-5", systemId: "s1", size: '2.00"', page: "5", welderId: "w1", expectedWelds: 6,  description: "RV cross-connection" },
+      { id: "i18", number: "2.00-RV-SS12-3035039-N-6", systemId: "s1", size: '2.00"', page: "6", welderId: "w1", expectedWelds: 8,  description: "RV mezzanine supply" },
+      // Nelvin (w2) — HPUR 1.5
+      { id: "i04", number: "1.50-HPUR-SS12-3012010-N-2", systemId: "s2", size: '1.50"', page: "2", welderId: "w2", expectedWelds: 8,  description: "HPUR skid tie-in" },
+      { id: "i05", number: "1.50-HPUR-SS12-3012011-N-2", systemId: "s2", size: '1.50"', page: "2", welderId: "w2", expectedWelds: 7,  description: "HPUR distribution branch" },
+      { id: "i19", number: "1.50-HPUR-SS12-3012012-N-2", systemId: "s2", size: '1.50"', page: "2", welderId: "w2", expectedWelds: 10, description: "HPUR branch extension" },
+      { id: "i20", number: "1.50-HPUR-SS12-3012013-N-3", systemId: "s2", size: '1.50"', page: "3", welderId: "w2", expectedWelds: 6,  description: "HPUR distribution loop" },
+      { id: "i21", number: "1.50-HPUR-SS12-3012014-N-3", systemId: "s2", size: '1.50"', page: "3", welderId: "w2", expectedWelds: 9,  description: "HPUR secondary feed" },
+      // Nathaniel (w3) — HPUR 3.0
+      { id: "i06", number: "3.00-HPUR-SS12-3012020-N-3", systemId: "s2", size: '3.00"', page: "3", welderId: "w3", expectedWelds: 10, description: "HPUR main header" },
+      { id: "i07", number: "3.00-HPUR-SS12-3012021-N-3", systemId: "s2", size: '3.00"', page: "3", welderId: "w3", expectedWelds: 9,  description: "HPUR header continuation" },
+      { id: "i22", number: "3.00-HPUR-SS12-3012022-N-3", systemId: "s2", size: '3.00"', page: "3", welderId: "w3", expectedWelds: 8,  description: "HPUR header extension" },
+      { id: "i23", number: "3.00-HPUR-SS12-3012023-N-3", systemId: "s2", size: '3.00"', page: "3", welderId: "w3", expectedWelds: 7,  description: "HPUR header tie-in" },
+      { id: "i24", number: "3.00-HPUR-SS12-3012024-N-4", systemId: "s2", size: '3.00"', page: "4", welderId: "w3", expectedWelds: 10, description: "HPUR upper header" },
+      // Michael (w4) — PV
+      { id: "i08", number: "1.00-PV-SS12-3045101-N-1", systemId: "s3", size: '1.00"', page: "1", welderId: "w4", expectedWelds: 5,  description: "PV sample port" },
+      { id: "i09", number: "2.00-PV-SS12-3045102-N-2", systemId: "s3", size: '2.00"', page: "2", welderId: "w4", expectedWelds: 8,  description: "PV main line" },
+      { id: "i25", number: "2.00-PV-SS12-3045103-N-2", systemId: "s3", size: '2.00"', page: "2", welderId: "w4", expectedWelds: 7,  description: "PV distribution branch" },
+      { id: "i26", number: "1.00-PV-SS12-3045104-N-2", systemId: "s3", size: '1.00"', page: "2", welderId: "w4", expectedWelds: 6,  description: "PV sample point 2" },
+      { id: "i27", number: "2.00-PV-SS12-3045105-N-3", systemId: "s3", size: '2.00"', page: "3", welderId: "w4", expectedWelds: 9,  description: "PV secondary header" },
+      // David (w5) — RO
+      { id: "i10", number: "1.50-RO-SS12-3067010-N-1", systemId: "s4", size: '1.50"', page: "1", welderId: "w5", expectedWelds: 7,  description: "RO water supply" },
+      { id: "i11", number: "1.50-RO-SS12-3067011-N-1", systemId: "s4", size: '1.50"', page: "1", welderId: "w5", expectedWelds: 6,  description: "RO return" },
+      { id: "i28", number: "1.50-RO-SS12-3067012-N-2", systemId: "s4", size: '1.50"', page: "2", welderId: "w5", expectedWelds: 8,  description: "RO distribution" },
+      { id: "i29", number: "1.50-RO-SS12-3067013-N-2", systemId: "s4", size: '1.50"', page: "2", welderId: "w5", expectedWelds: 9,  description: "RO secondary supply" },
+      { id: "i30", number: "1.50-RO-SS12-3067014-N-2", systemId: "s4", size: '1.50"', page: "2", welderId: "w5", expectedWelds: 7,  description: "RO point of use" },
+      // Jose (w6) — CIP
+      { id: "i12", number: "4.00-CIPS-SS12-3089001-N-6", systemId: "s5", size: '4.00"', page: "6", welderId: "w6", expectedWelds: 10, description: "CIP supply header" },
+      { id: "i13", number: "4.00-CIPR-SS12-3089002-N-6", systemId: "s6", size: '4.00"', page: "6", welderId: "w6", expectedWelds: 10, description: "CIP return header" },
+      { id: "i31", number: "4.00-CIPS-SS12-3089003-N-6", systemId: "s5", size: '4.00"', page: "6", welderId: "w6", expectedWelds: 9,  description: "CIP supply extension" },
+      { id: "i32", number: "4.00-CIPR-SS12-3089004-N-6", systemId: "s6", size: '4.00"', page: "6", welderId: "w6", expectedWelds: 8,  description: "CIP return extension" },
+      { id: "i33", number: "3.00-CIPS-SS12-3089005-N-7", systemId: "s5", size: '3.00"', page: "7", welderId: "w6", expectedWelds: 7,  description: "CIP distribution branch" },
+      // Carlos (w7) — RV sampling
+      { id: "i14", number: "2.00-RV-SS12-3035040-N-7", systemId: "s1", size: '2.00"', page: "7", welderId: "w7", expectedWelds: 6,  description: "RV sampling branch" },
+      { id: "i34", number: "2.00-RV-SS12-3035041-N-7", systemId: "s1", size: '2.00"', page: "7", welderId: "w7", expectedWelds: 8,  description: "RV sampling header" },
+      { id: "i35", number: "2.00-RV-SS12-3035042-N-7", systemId: "s1", size: '2.00"', page: "7", welderId: "w7", expectedWelds: 7,  description: "RV sampling extension" },
+      // Luis (w8) — HPUR 1.0 point of use
+      { id: "i15", number: "1.00-HPUR-SS12-3012030-N-4", systemId: "s2", size: '1.00"', page: "4", welderId: "w8", expectedWelds: 5,  description: "HPUR point of use 1" },
+      { id: "i36", number: "1.00-HPUR-SS12-3012031-N-4", systemId: "s2", size: '1.00"', page: "4", welderId: "w8", expectedWelds: 6,  description: "HPUR point of use 2" },
+      { id: "i37", number: "1.00-HPUR-SS12-3012032-N-4", systemId: "s2", size: '1.00"', page: "4", welderId: "w8", expectedWelds: 7,  description: "HPUR point of use 3" },
+      { id: "i38", number: "1.00-HPUR-SS12-3012033-N-5", systemId: "s2", size: '1.00"', page: "5", welderId: "w8", expectedWelds: 5,  description: "HPUR point of use 4" },
+      { id: "i39", number: "1.00-HPUR-SS12-3012034-N-5", systemId: "s2", size: '1.00"', page: "5", welderId: "w8", expectedWelds: 8,  description: "HPUR point of use 5" },
     ];
 
     // === Attach demo photos to a few ISOs (SVG placeholders that simulate weld progress photos) ===
@@ -731,17 +765,28 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
       w8: { machine: "8507420198", head: "8277410254", gasCyl: "31833338", lot: "S111692G" },
     };
 
-    // Welder-to-ISO assignments
-    const welderWork = {
-      w1: [{iso: isos[0], size: "2.00", sys: "RV", prog: "5"}, {iso: isos[1], size: "2.00", sys: "RV", prog: "5"}, {iso: isos[2], size: "2.00", sys: "RV", prog: "5"}],
-      w2: [{iso: isos[3], size: "1.50", sys: "HPUR", prog: "3"}, {iso: isos[4], size: "1.50", sys: "HPUR", prog: "3"}],
-      w3: [{iso: isos[5], size: "3.00", sys: "HPUR", prog: "7"}, {iso: isos[6], size: "3.00", sys: "HPUR", prog: "7"}],
-      w4: [{iso: isos[7], size: "1.00", sys: "PV", prog: "2"}, {iso: isos[8], size: "2.00", sys: "PV", prog: "5"}],
-      w5: [{iso: isos[9], size: "1.50", sys: "RO", prog: "3"}, {iso: isos[10], size: "1.50", sys: "RO", prog: "3"}],
-      w6: [{iso: isos[11], size: "4.00", sys: "CIPS", prog: "9"}, {iso: isos[12], size: "4.00", sys: "CIPR", prog: "9"}],
-      w7: [{iso: isos[13], size: "2.00", sys: "RV", prog: "5"}],
-      w8: [{iso: isos[14], size: "1.00", sys: "HPUR", prog: "2"}],
-    };
+    // Welder-to-ISO assignments (filtered from isos by welderId)
+    // Each welder now has 5-6 ISOs so welds spread out and don't pile on one ISO.
+    const buildWork = (wId) => isos.filter((i) => i.welderId === wId).map((iso) => ({
+      iso,
+      size: iso.size.replace(/"/g, ""),
+      sys: (isos.find((x) => x.id === iso.id)?.description || "").split(" ")[0],
+      prog: iso.size.startsWith("1.00") ? "2" : iso.size.startsWith("1.50") ? "3" : iso.size.startsWith("2.00") ? "5" : iso.size.startsWith("3.00") ? "7" : "9",
+    }));
+    const sysLookup = { s1: "RV", s2: "HPUR", s3: "PV", s4: "RO", s5: "CIPS", s6: "CIPR" };
+    const welderWork = {};
+    ["w1","w2","w3","w4","w5","w6","w7","w8"].forEach((wId) => {
+      welderWork[wId] = isos.filter((i) => i.welderId === wId).map((iso) => ({
+        iso,
+        size: iso.size.replace(/"/g, ""),
+        sys: sysLookup[iso.systemId] || "RV",
+        prog: iso.size.startsWith('1.00') ? "2" : iso.size.startsWith('1.50') ? "3" : iso.size.startsWith('2.00') ? "5" : iso.size.startsWith('3.00') ? "7" : "9",
+      }));
+    });
+
+    // Track welds already loggued per ISO to CAP at expectedWelds
+    const isoWeldCount = {};
+    isos.forEach((i) => { isoWeldCount[i.id] = 0; });
 
     // Deterministic pseudo-random (reproducible demo)
     let seed = 42;
@@ -773,20 +818,26 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
 
         const m = machines[wId];
         const workItems = welderWork[wId];
-        const workItem = workItems[Math.floor(rnd() * workItems.length)];
-        const numWelds = Math.max(2, Math.floor(2 + rnd() * 5 + recencyFactor * 2));
+        if (!workItems || workItems.length === 0) return;
+        // Pick an ISO that STILL HAS capacity (fewer welds logged than expected)
+        const availableItems = workItems.filter((wi) => isoWeldCount[wi.iso.id] < wi.iso.expectedWelds);
+        if (availableItems.length === 0) return; // all this welder's ISOs are complete
+        const workItem = availableItems[Math.floor(rnd() * availableItems.length)];
+        // Fewer welds per day (realistic): 1-3 per shift, max what the ISO has left
+        const dailyGoal = Math.max(1, Math.floor(1 + rnd() * 3));
+        const remaining = workItem.iso.expectedWelds - isoWeldCount[workItem.iso.id];
+        const numWelds = Math.min(dailyGoal, remaining);
+        if (numWelds <= 0) return;
 
         const entries = Array.from({length: numWelds}, (_, n) => {
-          const weldNum = weldCounters[wId]++;
-          // Realistic supports: ~70% of welds have 0-1, some have 2-3
+          const weldNum = ++isoWeldCount[workItem.iso.id]; // sequential per-ISO: FW01, FW02, ...
           const supportsRoll = Math.random();
           const supports = supportsRoll < 0.4 ? 0 : supportsRoll < 0.75 ? 1 : supportsRoll < 0.92 ? 2 : 3;
-          // Realistic linear feet: scales with pipe size (2" ≈ 2-5 ft, 4" ≈ 4-8 ft)
           const sizeNum = parseFloat(workItem.size) || 2;
           const baseFt = 2 + sizeNum * 0.8;
-          const linearFeet = Math.round((baseFt + Math.random() * 4) * 2) / 2; // round to .5
+          const linearFeet = Math.round((baseFt + Math.random() * 4) * 2) / 2;
           return {
-            id: `e-${wId}-${daysAgo}-${n}`,
+            id: `e-${wId}-${daysAgo}-${n}-${workItem.iso.id}`,
             size: workItem.size,
             machine: m.machine,
             iso: workItem.iso.number,
@@ -1293,6 +1344,7 @@ function IsoModal({ onClose, onSave, welders, systems, editing }) {
   const [systemId, setSystemId] = useState(editing?.systemId || "");
   const [size, setSize] = useState(editing?.size || "");
   const [page, setPage] = useState(editing?.page || "");
+  const [expectedWelds, setExpectedWelds] = useState(editing?.expectedWelds || "");
   const [error, setError] = useState("");
 
   const submit = () => {
@@ -1309,6 +1361,7 @@ function IsoModal({ onClose, onSave, welders, systems, editing }) {
       systemId,
       size: sizeFormatted,
       page: parseInt(page) || 0,
+      expectedWelds: Number(expectedWelds) || 0,
     });
     onClose();
   };
@@ -1347,9 +1400,17 @@ function IsoModal({ onClose, onSave, welders, systems, editing }) {
           <input value={size} onChange={(e) => setSize(e.target.value)} className={inputCls} placeholder='2"' />
         </Field>
       </div>
-      <Field label="PAGE NUMBER *">
-        <input type="number" value={page} onChange={(e) => setPage(e.target.value)} className={inputCls} placeholder="34" min="1" />
-      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="PAGE NUMBER *">
+          <input type="number" value={page} onChange={(e) => setPage(e.target.value)} className={inputCls} placeholder="34" min="1" />
+        </Field>
+        <Field label="EXPECTED WELDS">
+          <input type="number" value={expectedWelds} onChange={(e) => setExpectedWelds(e.target.value)} className={inputCls} placeholder="e.g. 8" min="1" max="30" />
+        </Field>
+      </div>
+      <div className="text-[10px] text-slate-500 italic -mt-2">
+        How many welds this ISO requires total (from the drawing). Used to track progress and "welds remaining".
+      </div>
       <Field label="ASSIGN A WELDER (OPCIONAL)">
         <select value={welderId} onChange={(e) => setWelderId(e.target.value)} className={selectCls}>
           <option value="">— Unassigned —</option>
@@ -3181,8 +3242,41 @@ ${topWelder ? `\n🏆 Top performer: ${topWelder.welder.name} — ${fmtNum(topWe
 
   const exportPDF = () => {
     const w = window.open("", "_blank");
+    // === COLLECT ALL PHOTOS from ISOs worked in this period as PROOF/EVIDENCE ===
+    const allPhotos = [];
+    isosWorked.forEach((isoNum) => {
+      const iso = (data.isos || []).find((i) => i.number === isoNum);
+      if (iso && iso.photos) {
+        iso.photos.forEach((p) => {
+          const pDate = (p.uploadedAt || "").split("T")[0];
+          if (!pDate || (pDate >= start && pDate <= end)) {
+            allPhotos.push({ ...p, isoNumber: iso.number });
+          }
+        });
+      }
+    });
+    // Add supervisor zone photos too
+    const projectZones = data.project?.zones || [];
+    projectZones.forEach((zone) => {
+      (zone.photos || []).forEach((p) => {
+        const pDate = (p.uploadedAt || "").split("T")[0];
+        if (!pDate || (pDate >= start && pDate <= end)) {
+          allPhotos.push({ ...p, isoNumber: `Zone: ${zone.name}`, uploadedByName: p.uploadedByName || "Supervisor" });
+        }
+      });
+    });
     const welderRowsHTML = welderBreakdown.map((r) => `<tr><td style="font-weight:700">${r.welder.name}</td><td style="text-align:right">${fmtNum(r.welds)}</td><td style="text-align:right">${fmtNum(r.supports)}</td><td style="text-align:right">${fmtNum(r.linearFeet)}</td><td style="text-align:right">${r.passRate !== null ? r.passRate + "%" : "—"}</td></tr>`).join("");
     const systemRowsHTML = systemRows.map((r) => `<tr><td style="font-weight:700">${r.name}</td><td style="text-align:right">${fmtNum(r.welds)}</td><td style="text-align:right">${fmtNum(r.supports)}</td><td style="text-align:right">${fmtNum(r.linearFeet)}</td></tr>`).join("");
+    const photosHTML = allPhotos.length === 0 ? "" : `<div class="section-title page-break-before">Field Photos — Evidence</div>
+<div class="section-subtitle">${allPhotos.length} photo${allPhotos.length === 1 ? "" : "s"} uploaded during this period · chronological proof of work completed</div>
+<div class="photo-grid">${allPhotos.map((p) => `<div class="photo-card">
+  <img src="${p.url}" alt="${(p.caption || "").replace(/"/g, "&quot;")}" />
+  <div class="photo-meta">
+    <div class="photo-iso">${p.isoNumber}</div>
+    ${p.caption ? `<div class="photo-caption">${p.caption}</div>` : ""}
+    <div class="photo-by">${p.uploadedByName || "Welder"} · ${p.uploadedAt ? new Date(p.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}</div>
+  </div>
+</div>`).join("")}</div>`;
     const isoRowsHTML = isoRows.map((r) => `<tr>
       <td style="font-family:monospace;font-weight:700;color:#1e40af">${r.number}</td>
       <td style="font-size:8pt;color:#475569">${r.system || "—"}</td>
@@ -3229,6 +3323,14 @@ tr:nth-child(even) td{background:#f8fafc}
 .iso-table col.c7{width:1.75in}
 .ft{margin-top:24pt;padding-top:12pt;border-top:1px solid #cbd5e1;font-size:8pt;color:#64748b;text-align:center}
 tr{page-break-inside:avoid}
+.page-break-before{page-break-before:always}
+.photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:12pt;margin-top:8pt}
+.photo-card{border:1pt solid #cbd5e1;border-radius:4pt;overflow:hidden;background:#f8fafc;page-break-inside:avoid}
+.photo-card img{width:100%;height:2.2in;object-fit:cover;display:block;background:#1e293b}
+.photo-meta{padding:6pt 8pt}
+.photo-iso{font-family:monospace;font-weight:700;color:#1e40af;font-size:8.5pt}
+.photo-caption{font-size:9pt;color:#0f172a;font-weight:600;margin-top:2pt}
+.photo-by{font-size:7.5pt;color:#64748b;margin-top:2pt}
 </style></head><body>
 <div class="pb no-print"><div style="font-weight:700;letter-spacing:2px">📊 WELD REPORT — ${label}</div><div><button class="print-btn" onclick="window.print()">🖨️ PRINT / SAVE PDF</button><button class="close-btn" onclick="window.close()">✕ CLOSE</button></div></div>
 <div class="content">
@@ -3263,6 +3365,7 @@ ${isoRows.length > 0 ? `<div class="section-title">Breakdown by ISO</div>
 <th>Weld Numbers · Dates</th>
 </tr></thead>
 <tbody>${isoRowsHTML}</tbody></table>` : ""}
+${photosHTML}
 <div class="ft">Report generated by SWCS · Sanitary Weld Control System · ${new Date().toISOString().split("T")[0]}</div>
 </div></body></html>`;
     w.document.write(html);
@@ -4479,24 +4582,27 @@ function ProjectMapView({ project, isos, welders, dailyLogs, inspections, onSave
   const [showZoneModal, setShowZoneModal] = useState(null); // zone being edited OR {isNew: true, rect: {...}}
   const [selectedZoneId, setSelectedZoneId] = useState(null);
   const [showPhotoModal, setShowPhotoModal] = useState(null); // zone id
+  const [previewPhoto, setPreviewPhoto] = useState(null); // fullscreen photo preview
   const mapContainerRef = React.useRef(null);
   const fileInputRef = React.useRef(null);
 
   // === Compute zone completion % based on assigned ISOs ===
   const getZoneProgress = (zone) => {
     const zoneIsos = (zone.isoIds || []).map((id) => isos.find((i) => i.id === id)).filter(Boolean);
-    if (zoneIsos.length === 0) return { pct: 0, completedIsos: 0, totalIsos: 0, totalWelds: 0, completedWelds: 0 };
-    let totalWelds = 0, completedWelds = 0, completedIsos = 0;
+    if (zoneIsos.length === 0) return { pct: 0, completedIsos: 0, totalIsos: 0, totalWelds: 0, completedWelds: 0, remaining: 0 };
+    let totalExpected = 0, totalDone = 0, completedIsos = 0, totalLogged = 0;
     zoneIsos.forEach((iso) => {
-      const isoLogs = dailyLogs.filter((l) => l.entries.some((e) => e.iso === iso.number));
-      const isoEntries = isoLogs.flatMap((l) => l.entries.filter((e) => e.iso === iso.number).map((e) => ({...e, logId: l.id})));
-      totalWelds += isoEntries.length;
-      const accepted = isoEntries.filter((e) => inspections.find((i) => i.weldRef === `${e.logId}-${e.id}` && i.status === "accepted")).length;
-      completedWelds += accepted;
-      if (isoEntries.length > 0 && accepted === isoEntries.length) completedIsos++;
+      const isoEntries = dailyLogs.flatMap((l) => l.entries.filter((e) => e.iso === iso.number));
+      const done = isoEntries.length;
+      const expected = Number(iso.expectedWelds) || done; // fallback: if no expected, treat all logged as expected
+      totalExpected += expected;
+      totalDone += Math.min(done, expected);
+      totalLogged += done;
+      if (expected > 0 && done >= expected) completedIsos++;
     });
-    const pct = totalWelds === 0 ? 0 : Math.round((completedWelds / totalWelds) * 100);
-    return { pct, completedIsos, totalIsos: zoneIsos.length, totalWelds, completedWelds };
+    const pct = totalExpected === 0 ? 0 : Math.round((totalDone / totalExpected) * 100);
+    const remaining = Math.max(0, totalExpected - totalDone);
+    return { pct, completedIsos, totalIsos: zoneIsos.length, totalWelds: totalExpected, completedWelds: totalDone, remaining };
   };
 
   // === Determine zone color based on progress and deadline ===
@@ -4856,14 +4962,33 @@ function ProjectMapView({ project, isos, welders, dailyLogs, inspections, onSave
                   if (!iso) return null;
                   const isoLogs = dailyLogs.filter((l) => l.entries.some((e) => e.iso === iso.number));
                   const isoEntries = isoLogs.flatMap((l) => l.entries.filter((e) => e.iso === iso.number).map((e) => ({...e, logId: l.id})));
-                  const accepted = isoEntries.filter((e) => inspections.find((i) => i.weldRef === `${e.logId}-${e.id}` && i.status === "accepted")).length;
-                  const isoP = isoEntries.length === 0 ? 0 : Math.round((accepted / isoEntries.length) * 100);
+                  const done = isoEntries.length;
+                  const expected = Number(iso.expectedWelds) || 0;
+                  const remaining = Math.max(0, expected - done);
+                  const progressPct = expected > 0 ? Math.min(100, Math.round((done / expected) * 100)) : 0;
+                  const isComplete = expected > 0 && done >= expected;
+                  const barColor = isComplete ? "bg-emerald-500" : progressPct >= 70 ? "bg-blue-600" : progressPct >= 30 ? "bg-amber-500" : "bg-slate-400";
                   return (
                     <div key={isoId} className="flex items-center gap-2 text-xs bg-slate-50 px-2 py-1.5 rounded">
                       <span className="font-mono text-blue-700 font-bold flex-1 truncate">{iso.number}</span>
-                      <span className="text-slate-500">{accepted}/{isoEntries.length}</span>
-                      <span className="font-bold text-slate-700 w-10 text-right">{isoP}%</span>
-                      <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-emerald-500" style={{width: `${isoP}%`}}/></div>
+                      {expected > 0 ? (
+                        <>
+                          <span className="text-slate-500 font-mono">{done}/{expected}</span>
+                          {isComplete ? (
+                            <span className="text-emerald-700 font-black text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded w-16 text-center">✓ DONE</span>
+                          ) : (
+                            <span className={`font-black text-[10px] px-1.5 py-0.5 rounded w-16 text-center ${remaining <= 2 ? "bg-amber-100 text-amber-800" : "bg-slate-200 text-slate-700"}`}>
+                              {remaining} LEFT
+                            </span>
+                          )}
+                          <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className={`h-full ${barColor}`} style={{width: `${progressPct}%`}}/></div>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-slate-400 italic text-[10px]">no expected set</span>
+                          <span className="text-slate-500 font-mono">{done} logged</span>
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -4895,8 +5020,16 @@ function ProjectMapView({ project, isos, welders, dailyLogs, inspections, onSave
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     {welderPhotos.map((photo) => (
-                      <div key={photo.id} className="relative group bg-white border border-blue-200 rounded overflow-hidden">
+                      <button
+                        key={photo.id}
+                        onClick={() => setPreviewPhoto(photo)}
+                        className="relative group bg-white border border-blue-200 rounded overflow-hidden text-left hover:ring-2 hover:ring-blue-500 transition-all"
+                        title="Click to view full size"
+                      >
                         <img src={photo.url} alt={photo.caption} className="w-full h-24 object-cover"/>
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <Eye size={20} className="text-white opacity-0 group-hover:opacity-100 drop-shadow-lg" />
+                        </div>
                         <div className="p-1.5 bg-blue-50/70">
                           <div className="text-[9px] text-blue-700 font-bold font-mono truncate">{photo.isoNumber}</div>
                           {photo.caption && <div className="text-[9px] text-slate-700 truncate font-medium">{photo.caption}</div>}
@@ -4904,7 +5037,7 @@ function ProjectMapView({ project, isos, welders, dailyLogs, inspections, onSave
                             {photo.uploadedByName || "Welder"} · {new Date(photo.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                           </div>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -4930,9 +5063,18 @@ function ProjectMapView({ project, isos, welders, dailyLogs, inspections, onSave
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {(selectedZone.photos || []).map((photo) => (
                   <div key={photo.id} className="relative group">
-                    <img src={photo.url} alt={photo.caption} className="w-full h-24 object-cover rounded border border-slate-200"/>
-                    <button onClick={() => { if (confirm("Delete this photo?")) onDeletePhoto(selectedZone.id, photo.id); }} className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs">×</button>
-                    {photo.caption && <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[9px] px-1 py-0.5 truncate">{photo.caption}</div>}
+                    <button
+                      onClick={() => setPreviewPhoto({ ...photo, isoNumber: "Supervisor Evidence" })}
+                      className="block w-full hover:ring-2 hover:ring-blue-500 rounded transition-all"
+                      title="Click to view full size"
+                    >
+                      <img src={photo.url} alt={photo.caption} className="w-full h-24 object-cover rounded border border-slate-200"/>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center rounded">
+                        <Eye size={20} className="text-white opacity-0 group-hover:opacity-100 drop-shadow-lg" />
+                      </div>
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); if (confirm("Delete this photo?")) onDeletePhoto(selectedZone.id, photo.id); }} className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs z-10">×</button>
+                    {photo.caption && <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[9px] px-1 py-0.5 truncate pointer-events-none">{photo.caption}</div>}
                   </div>
                 ))}
               </div>
@@ -4952,6 +5094,54 @@ function ProjectMapView({ project, isos, welders, dailyLogs, inspections, onSave
           else { onUpdateZone(showZoneModal.id, data); }
           setShowZoneModal(null);
         }} onClose={() => setShowZoneModal(null)} />
+      )}
+      {/* === FULLSCREEN PHOTO PREVIEW === */}
+      {previewPhoto && (
+        <div
+          className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 cursor-zoom-out"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <button
+            onClick={() => setPreviewPhoto(null)}
+            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full w-10 h-10 flex items-center justify-center transition-colors z-10"
+            title="Close (or click anywhere)"
+          >
+            <X size={22} />
+          </button>
+          <div className="absolute top-4 left-4 right-16 text-white z-10">
+            <div className="text-xs font-mono font-bold text-blue-300">{previewPhoto.isoNumber || "Photo"}</div>
+            {previewPhoto.caption && <div className="text-sm font-bold">{previewPhoto.caption}</div>}
+            <div className="text-xs text-slate-300">
+              {previewPhoto.uploadedByName && <span>{previewPhoto.uploadedByName}</span>}
+              {previewPhoto.uploadedAt && <span> · {new Date(previewPhoto.uploadedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>}
+            </div>
+          </div>
+          <img
+            src={previewPhoto.url}
+            alt={previewPhoto.caption || "Photo"}
+            className="max-w-full max-h-[85vh] object-contain cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+            <a
+              href={previewPhoto.url}
+              download={`${(previewPhoto.isoNumber || "photo").replace(/[^a-z0-9-]/gi, "_")}_${(previewPhoto.caption || "field").replace(/\s+/g, "_")}.png`}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold tracking-widest px-4 py-2 rounded flex items-center gap-2 shadow-lg"
+            >
+              <Download size={14} /> DOWNLOAD
+            </a>
+            <button
+              onClick={() => setPreviewPhoto(null)}
+              className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold tracking-widest px-4 py-2 rounded transition-colors"
+            >
+              CLOSE
+            </button>
+          </div>
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 text-white/50 text-[10px] italic">
+            Tap anywhere outside the photo to close
+          </div>
+        </div>
       )}
     </div>
   );
