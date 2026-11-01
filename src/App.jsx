@@ -492,6 +492,26 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
     ) } : d.project,
   }));
 
+  // === ISO PHOTOS (uploaded by welders, visible by admin in project map) ===
+  const addIsoPhoto = (isoId, photoData) => setData((d) => ({
+    ...d,
+    isos: d.isos.map((iso) => iso.id === isoId ? {
+      ...iso,
+      photos: [...(iso.photos || []), {
+        id: Date.now().toString(),
+        url: photoData.url,
+        caption: photoData.caption || "",
+        uploadedBy: photoData.uploadedBy,
+        uploadedByName: photoData.uploadedByName,
+        uploadedAt: new Date().toISOString(),
+      }],
+    } : iso),
+  }));
+  const deleteIsoPhoto = (isoId, photoId) => setData((d) => ({
+    ...d,
+    isos: d.isos.map((iso) => iso.id === isoId ? { ...iso, photos: (iso.photos || []).filter((p) => p.id !== photoId) } : iso),
+  }));
+
   // === DEMO DATA for presentations ===
   const loadDemoData = () => {
     if (!confirm("Load demo data? This will replace all current data with a realistic WARP10 HYGIENIC project demo.")) return;
@@ -532,6 +552,38 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
       { id: "i14", number: "2.00-RV-SS12-3035040-N-7", systemId: "s1", size: '2.00"', page: "7", welderId: "w7", description: "RV sampling branch" },
       { id: "i15", number: "1.00-HPUR-SS12-3012030-N-4", systemId: "s2", size: '1.00"', page: "4", welderId: "w8", description: "HPUR point of use" },
     ];
+
+    // === Attach demo photos to a few ISOs (SVG placeholders that simulate weld progress photos) ===
+    const makePhotoSvg = (label, color) => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${color}"/><stop offset="1" stop-color="#1e293b"/></linearGradient><radialGradient id="shine" cx="0.3" cy="0.3" r="0.6"><stop offset="0" stop-color="rgba(255,255,255,0.3)"/><stop offset="1" stop-color="rgba(255,255,255,0)"/></radialGradient></defs><rect width="400" height="300" fill="url(#bg)"/><circle cx="200" cy="150" r="80" fill="#64748b" stroke="#cbd5e1" stroke-width="3"/><circle cx="200" cy="150" r="60" fill="none" stroke="#f1f5f9" stroke-width="2"/><rect x="80" y="140" width="240" height="20" fill="#94a3b8" opacity="0.7"/><rect width="400" height="300" fill="url(#shine)"/><text x="20" y="30" fill="white" font-family="Helvetica" font-size="14" font-weight="bold" opacity="0.9">${label}</text><text x="20" y="280" fill="white" font-family="Helvetica" font-size="10" opacity="0.7">FIELD PHOTO · DEMO</text></svg>`;
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    };
+    const photoOn = (isoIdx, welder, label, color, daysAgo = 0) => {
+      const dt = new Date(today); dt.setDate(dt.getDate() - daysAgo);
+      if (!isos[isoIdx].photos) isos[isoIdx].photos = [];
+      isos[isoIdx].photos.push({
+        id: `ph-${isoIdx}-${isos[isoIdx].photos.length}`,
+        url: makePhotoSvg(label, color),
+        caption: label,
+        uploadedBy: welder,
+        uploadedByName: welders.find((w) => w.id === welder)?.name || "Welder",
+        uploadedAt: dt.toISOString(),
+      });
+    };
+    // Hector's ISOs (zones Mezzanine + HVAC)
+    photoOn(0, "w1", "FW03 after root pass", "#475569", 3);
+    photoOn(0, "w1", "Weld face finished", "#334155", 2);
+    photoOn(1, "w1", "RV header orbital complete", "#1e3a8a", 1);
+    // Nelvin's ISOs (zone Buffer Prep)
+    photoOn(3, "w2", "Skid tie-in area", "#78350f", 5);
+    photoOn(4, "w2", "HPUR branch connection", "#047857", 2);
+    // Nathaniel's ISOs (zone Process Corridor)
+    photoOn(5, "w3", "3in header pre-weld prep", "#7c3aed", 7);
+    photoOn(6, "w3", "After final pass - visual OK", "#059669", 1);
+    // Jose's ISOs (zone Central CIP)
+    photoOn(11, "w6", "CIP supply header weld #1", "#0891b2", 4);
+    // Michael's ISOs (zone Media Prep)
+    photoOn(7, "w4", "Sample port installation", "#be123c", 6);
 
     // === BUILD DAILY LOGS distributed over 90 days (realistic pattern) ===
     const dailyLogs = [];
@@ -664,51 +716,12 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
       { id: "t10", name: "Purge Dam Kit 1-4 inch", serial: "PDK-040", welderId: null },
     ];
 
-    // === DEMO PROJECT with pre-drawn zones (uses an inline SVG floor plan placeholder) ===
-    // The SVG mimics a biotech facility floor plan — supervisor can replace with real plan anytime
-    const demoFloorPlanSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
-<rect width="1200" height="900" fill="#f8f5e8"/>
-<g stroke="#333" stroke-width="2" fill="none">
-<rect x="40" y="40" width="1120" height="820" stroke-width="4"/>
-<line x1="40" y1="300" x2="1160" y2="300"/><line x1="40" y1="600" x2="1160" y2="600"/>
-<line x1="400" y1="40" x2="400" y2="860"/><line x1="800" y1="40" x2="800" y2="860"/>
-<rect x="80" y="80" width="280" height="180"/><rect x="440" y="80" width="320" height="180"/><rect x="840" y="80" width="280" height="180"/>
-<rect x="80" y="340" width="280" height="220"/><rect x="440" y="340" width="320" height="220"/><rect x="840" y="340" width="280" height="220"/>
-<rect x="80" y="640" width="280" height="180"/><rect x="440" y="640" width="320" height="180"/><rect x="840" y="640" width="280" height="180"/>
-</g>
-<g font-family="Helvetica,Arial" font-size="18" fill="#555" text-anchor="middle" font-weight="bold">
-<text x="220" y="175">MEZZANINE</text><text x="600" y="175">HVAC MECHANICAL</text><text x="980" y="175">BUFFER PREP</text>
-<text x="220" y="455">CENTRAL CIP</text><text x="600" y="455">PROCESS CORRIDOR</text><text x="980" y="455">MEDIA PREP</text>
-<text x="220" y="735">LOADING PLATFORM</text><text x="600" y="735">AUTOCLAVE ROOM</text><text x="980" y="735">ELECTRICAL SUB.</text>
-</g>
-<g font-family="Helvetica,Arial" font-size="11" fill="#888" text-anchor="middle">
-<text x="220" y="200">737-10200</text><text x="600" y="200">737-10250</text><text x="980" y="200">737-10300</text>
-<text x="220" y="480">737-10202</text><text x="600" y="480">737-10400</text><text x="980" y="480">737-20600</text>
-<text x="220" y="760">737-20700</text><text x="600" y="760">737-20620</text><text x="980" y="760">737-20231</text>
-</g>
-<text x="600" y="30" font-family="Helvetica,Arial" font-size="14" fill="#333" text-anchor="middle" font-weight="bold">BIOTECH FACILITY - FLOOR PLAN LVL 1</text>
-<text x="600" y="890" font-family="Helvetica,Arial" font-size="10" fill="#888" text-anchor="middle" font-style="italic">Replace with your actual floor plan</text>
-</svg>`;
-    const demoFloorPlanUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(demoFloorPlanSvg)}`;
-    const futureDate = (days) => { const dt = new Date(today); dt.setDate(dt.getDate() + days); return dt.toISOString().split("T")[0]; };
-    const project = {
-      id: "p1",
-      name: "Biotech Facility - Project X",
-      client: "Confidential Client",
-      jobNumber: "24.715.0002",
-      floorPlanUrl: demoFloorPlanUrl,
-      zones: [
-        { id: "z1", name: "Mezzanine", description: "HVAC and utility piping on mezzanine level", rect: { x: 6.5, y: 10, width: 23, height: 20 }, deadline: futureDate(45), isoIds: ["i01", "i02"], photos: [] },
-        { id: "z2", name: "HVAC Mechanical", description: "Air handling units and ductwork", rect: { x: 36.5, y: 10, width: 27, height: 20 }, deadline: futureDate(60), isoIds: ["i03"], photos: [] },
-        { id: "z3", name: "Buffer Prep", description: "Buffer preparation vessels and heat exchanger", rect: { x: 70, y: 10, width: 23, height: 20 }, deadline: futureDate(30), isoIds: ["i04", "i05"], photos: [] },
-        { id: "z4", name: "Central CIP", description: "Central CIP tanks and supply header", rect: { x: 6.5, y: 38, width: 23, height: 24 }, deadline: futureDate(20), isoIds: ["i12", "i13"], photos: [] },
-        { id: "z5", name: "Process Corridor", description: "Main process header distribution", rect: { x: 36.5, y: 38, width: 27, height: 24 }, deadline: futureDate(90), isoIds: ["i06", "i07"], photos: [] },
-        { id: "z6", name: "Media Prep", description: "Media preparation and perfusion vessels", rect: { x: 70, y: 38, width: 23, height: 24 }, deadline: futureDate(75), isoIds: ["i08", "i09"], photos: [] },
-        { id: "z7", name: "Loading Platform", description: "Two-story loading platform and dock equipment", rect: { x: 6.5, y: 71, width: 23, height: 20 }, deadline: futureDate(-5), isoIds: ["i14"], photos: [] },
-        { id: "z8", name: "Autoclave Room", description: "Clean/dirty wash staging and autoclave", rect: { x: 36.5, y: 71, width: 27, height: 20 }, deadline: futureDate(15), isoIds: ["i10", "i11"], photos: [] },
-        { id: "z9", name: "Electrical Substation", description: "Not in current scope", rect: { x: 70, y: 71, width: 23, height: 20 }, deadline: futureDate(120), isoIds: ["i15"], photos: [] },
-      ],
-    };
+    // === PROJECT MAP intentionally left EMPTY ===
+    // The admin/supervisor sets up the Project Map LIVE during the demo to show the workflow.
+    // All welders, ISOs, photos, logs, etc. are pre-loaded — but Project Map starts blank
+    // so you can upload the floor plan, draw zones, and assign ISOs in front of the PM.
+    // The pre-loaded ISO photos will auto-appear in each zone as soon as you assign the ISOs.
+    const project = null;
 
     setData((d) => ({ ...d, welders, systems, isos, dailyLogs, inspections, coupons, tools, project }));
     alert(
@@ -810,6 +823,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
     { id: "codes", icon: BookOpen, label: "CODES" },
   ] : [
     { id: "dashboard", icon: BarChart3, label: "MY DASHBOARD" },
+    { id: "myisos", icon: FileImage, label: "MY ISOS" },
     { id: "logs", icon: ClipboardList, label: "MY DAILY LOGS" },
     { id: "coupons", icon: Award, label: "MY COUPONS" },
     { id: "tools", icon: Wrench, label: "MY TOOLS" },
@@ -930,7 +944,8 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
         {view === "logs" && <LogsView role={role} currentUser={currentUser} logs={visibleLogs} welders={data.welders} isos={data.isos} inspections={data.inspections} onSaveLog={saveLog} onDeleteLog={deleteLog} onAddEntry={addEntry} onDeleteEntry={deleteEntry} onUpdateEntry={updateEntry} />}
         {view === "inspections" && (role === "admin" || role === "qc") && <InspectionsView role={role} logs={data.dailyLogs} welders={data.welders} inspections={data.inspections} onAdd={addInspection} onDelete={deleteInspection} />}
         {view === "coupons" && <CouponsView role={role} currentUser={currentUser} welders={data.welders} coupons={data.coupons || []} dailyLogs={data.dailyLogs} onAdd={addCoupon} onUpdate={updateCoupon} onDelete={deleteCoupon} />}
-        {view === "projectmap" && role === "admin" && <ProjectMapView project={data.project} isos={data.isos} dailyLogs={data.dailyLogs} inspections={data.inspections} onSaveProject={saveProject} onAddZone={addZone} onUpdateZone={updateZone} onDeleteZone={deleteZone} onAddPhoto={addZonePhoto} onDeletePhoto={deleteZonePhoto} />}
+        {view === "projectmap" && role === "admin" && <ProjectMapView project={data.project} isos={data.isos} welders={data.welders} dailyLogs={data.dailyLogs} inspections={data.inspections} onSaveProject={saveProject} onAddZone={addZone} onUpdateZone={updateZone} onDeleteZone={deleteZone} onAddPhoto={addZonePhoto} onDeletePhoto={deleteZonePhoto} />}
+        {view === "myisos" && role === "welder" && <MyIsosView currentUser={currentUser} isos={data.isos} systems={data.systems || []} onAddPhoto={addIsoPhoto} onDeletePhoto={deleteIsoPhoto} />}
         {view === "tools" && <ToolsView role={role} currentUser={currentUser} tools={data.tools} welders={data.welders} onAdd={addTool} onDelete={deleteTool} onReassign={reassignTool} />}
         {view === "charts" && role === "admin" && <ChartsView data={data} getEntryRef={getEntryRef} />}
         {view === "codes" && <CodesView />}
@@ -3388,8 +3403,145 @@ function CouponRejectModal({ coupon, welder, onClose, onConfirm }) {
 }
 
 
+// ===================== MY ISOS (welder view) =====================
+function MyIsosView({ currentUser, isos, systems, onAddPhoto, onDeletePhoto }) {
+  const [expandedIsoId, setExpandedIsoId] = useState(null);
+  const [uploadingIsoId, setUploadingIsoId] = useState(null);
+  const [previewPhoto, setPreviewPhoto] = useState(null);
+  const myIsos = isos.filter((iso) => iso.welderId === currentUser.id);
+  const fileInputRef = React.useRef(null);
+
+  const openUpload = (isoId) => { setUploadingIsoId(isoId); setTimeout(() => fileInputRef.current?.click(), 50); };
+
+  const handleFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadingIsoId) return;
+    if (file.size > 5 * 1024 * 1024) { alert("Image too large (max 5MB). Please take a smaller photo."); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const caption = prompt("Add a caption (optional):") || "";
+      onAddPhoto(uploadingIsoId, {
+        url: ev.target.result,
+        caption,
+        uploadedBy: currentUser.id,
+        uploadedByName: currentUser.name,
+      });
+      setUploadingIsoId(null);
+      e.target.value = "";
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const totalPhotos = myIsos.reduce((s, iso) => s + (iso.photos || []).length, 0);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-2xl font-black tracking-tight text-slate-900">MY ISOs</h2>
+        <p className="text-slate-500 text-xs tracking-wider font-semibold">
+          {myIsos.length} ASSIGNED · {totalPhotos} PHOTOS UPLOADED
+        </p>
+      </div>
+
+      <div className="bg-emerald-50 border border-emerald-200 px-4 py-3 text-xs text-emerald-800 flex items-start gap-2 rounded">
+        <FileImage size={14} className="mt-0.5 flex-shrink-0" />
+        <div>
+          <strong>Upload progress photos</strong> of your assigned ISOs. Your supervisor sees them automatically in the Project Map.
+        </div>
+      </div>
+
+      {myIsos.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-lg p-8 text-center">
+          <FileImage size={40} className="mx-auto text-slate-300 mb-3" />
+          <div className="text-sm text-slate-600 font-semibold">No ISOs assigned to you yet</div>
+          <div className="text-xs text-slate-400 mt-1">Ask your admin to assign ISOs to you.</div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {myIsos.map((iso) => {
+            const system = systems.find((s) => s.id === iso.systemId);
+            const isExpanded = expandedIsoId === iso.id;
+            const photos = iso.photos || [];
+            return (
+              <div key={iso.id} className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                <button
+                  onClick={() => setExpandedIsoId(isExpanded ? null : iso.id)}
+                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+                      <FileText size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-sm text-slate-900 font-mono truncate">{iso.number}</div>
+                      <div className="text-xs text-slate-500 truncate">
+                        {system && <span>{system.name} · </span>}
+                        {iso.size && <span>{iso.size} · </span>}
+                        {iso.description || "No description"}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${photos.length > 0 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-slate-50 text-slate-500 border border-slate-200"}`}>
+                      {photos.length} {photos.length === 1 ? "photo" : "photos"}
+                    </span>
+                    {isExpanded ? <ChevronDown size={18} className="text-slate-400" /> : <ChevronRight size={18} className="text-slate-400" />}
+                  </div>
+                </button>
+
+                {isExpanded && (
+                  <div className="border-t border-slate-100 bg-slate-50/30 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-xs font-bold tracking-widest text-slate-700">PROGRESS PHOTOS</h4>
+                      <button onClick={() => openUpload(iso.id)} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold tracking-widest px-3 py-1.5 rounded flex items-center gap-1 transition-colors">
+                        <Upload size={11} /> UPLOAD PHOTO
+                      </button>
+                    </div>
+
+                    {photos.length === 0 ? (
+                      <div className="bg-white border border-dashed border-slate-300 rounded p-6 text-center">
+                        <FileImage size={28} className="mx-auto text-slate-300 mb-2" />
+                        <div className="text-xs text-slate-500 italic">No photos yet. Upload one!</div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                        {photos.map((photo) => (
+                          <div key={photo.id} className="relative group bg-white border border-slate-200 rounded overflow-hidden">
+                            <img src={photo.url} alt={photo.caption} onClick={() => setPreviewPhoto(photo)} className="w-full h-28 object-cover cursor-pointer" />
+                            <button onClick={() => { if (confirm("Delete this photo?")) onDeletePhoto(iso.id, photo.id); }} className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold">×</button>
+                            <div className="p-1.5">
+                              {photo.caption && <div className="text-[10px] text-slate-700 truncate font-medium">{photo.caption}</div>}
+                              <div className="text-[9px] text-slate-400">{new Date(photo.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleFile} className="hidden" />
+
+      {previewPhoto && (
+        <div onClick={() => setPreviewPhoto(null)} className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 cursor-pointer">
+          <div className="max-w-4xl w-full">
+            <img src={previewPhoto.url} alt={previewPhoto.caption} className="w-full h-auto max-h-[80vh] object-contain" />
+            {previewPhoto.caption && <div className="text-white text-center mt-3 text-sm">{previewPhoto.caption}</div>}
+            <div className="text-slate-400 text-center mt-1 text-xs">Click anywhere to close</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===================== PROJECT MAP VIEW =====================
-function ProjectMapView({ project, isos, dailyLogs, inspections, onSaveProject, onAddZone, onUpdateZone, onDeleteZone, onAddPhoto, onDeletePhoto }) {
+function ProjectMapView({ project, isos, welders, dailyLogs, inspections, onSaveProject, onAddZone, onUpdateZone, onDeleteZone, onAddPhoto, onDeletePhoto }) {
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [drawingRect, setDrawingRect] = useState(null); // {startX, startY, endX, endY}
@@ -3676,6 +3828,14 @@ function ProjectMapView({ project, isos, dailyLogs, inspections, onSaveProject, 
                           <div className="w-3 h-3 rounded flex-shrink-0 mt-1" style={{background: color.fill, border: `2px solid ${color.stroke}`}}/>
                           <div className="flex-1 min-w-0">
                             <div className="font-bold text-sm text-slate-900 truncate">{zone.name}</div>
+                            {zone.welderId && (() => {
+                              const lw = welders?.find((w) => w.id === zone.welderId);
+                              return lw ? (
+                                <div className="text-[10px] text-blue-700 font-semibold truncate flex items-center gap-1 mt-0.5">
+                                  <HardHat size={9} /> {lw.name.split(" ")[0]} {lw.name.split(" ").slice(1).join(" ").charAt(0)}.
+                                </div>
+                              ) : null;
+                            })()}
                             <div className="flex items-center gap-2 mt-1 text-[10px]">
                               <span className="font-mono font-bold" style={{color: color.stroke}}>{pct}%</span>
                               <span className="text-slate-500">{completedIsos}/{totalIsos} ISOs</span>
@@ -3702,17 +3862,25 @@ function ProjectMapView({ project, isos, dailyLogs, inspections, onSaveProject, 
       {selectedZone && (
         <div className="bg-white border-2 border-blue-700 rounded-lg p-4 shadow-lg">
           <div className="flex items-start justify-between gap-3 mb-3">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <div className="w-5 h-5 rounded" style={{background: getZoneColor(selectedZone).fill, border: `2px solid ${getZoneColor(selectedZone).stroke}`}}/>
                 <h3 className="text-lg font-black text-slate-900">{selectedZone.name}</h3>
                 <span className="text-[10px] font-bold tracking-widest px-2 py-0.5 rounded" style={{background: getZoneColor(selectedZone).fill, color: getZoneColor(selectedZone).stroke}}>
                   {getZoneColor(selectedZone).label}
                 </span>
+                {selectedZone.welderId && (() => {
+                  const leadWelder = welders?.find((w) => w.id === selectedZone.welderId);
+                  return leadWelder ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200 flex items-center gap-1">
+                      <HardHat size={10} /> {leadWelder.name} (#{leadWelder.welderId})
+                    </span>
+                  ) : null;
+                })()}
               </div>
               {selectedZone.description && <p className="text-xs text-slate-600">{selectedZone.description}</p>}
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1 flex-shrink-0">
               <button onClick={() => setShowZoneModal(selectedZone)} className="text-slate-500 hover:text-blue-700 p-1.5 hover:bg-blue-50 rounded"><Edit2 size={14} /></button>
               <button onClick={() => { onDeleteZone(selectedZone.id); setSelectedZoneId(null); }} className="text-slate-500 hover:text-red-600 p-1.5 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
               <button onClick={() => setSelectedZoneId(null)} className="text-slate-500 hover:text-slate-700 p-1.5 hover:bg-slate-100 rounded"><X size={14} /></button>
@@ -3763,17 +3931,61 @@ function ProjectMapView({ project, isos, dailyLogs, inspections, onSaveProject, 
             </div>
           )}
 
-          {/* Photos section */}
+          {/* === WELDER PHOTOS (from assigned ISOs) === */}
+          {(() => {
+            // Gather all photos from the ISOs assigned to this zone
+            const welderPhotos = (selectedZone.isoIds || []).flatMap((isoId) => {
+              const iso = isos.find((i) => i.id === isoId);
+              if (!iso || !iso.photos) return [];
+              return iso.photos.map((p) => ({ ...p, isoNumber: iso.number }));
+            });
+            return (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[10px] font-bold tracking-widest text-slate-700 flex items-center gap-1.5">
+                    <HardHat size={11} className="text-blue-700" />
+                    WELDER FIELD PHOTOS ({welderPhotos.length})
+                  </div>
+                  <span className="text-[9px] text-slate-400 italic">Auto-uploaded by welders from the field</span>
+                </div>
+                {welderPhotos.length === 0 ? (
+                  <div className="bg-blue-50 border border-dashed border-blue-200 rounded p-3 text-center text-xs text-blue-600 italic">
+                    No welder photos yet. Welders upload from "MY ISOS" view and they appear here automatically.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {welderPhotos.map((photo) => (
+                      <div key={photo.id} className="relative group bg-white border border-blue-200 rounded overflow-hidden">
+                        <img src={photo.url} alt={photo.caption} className="w-full h-24 object-cover"/>
+                        <div className="p-1.5 bg-blue-50/70">
+                          <div className="text-[9px] text-blue-700 font-bold font-mono truncate">{photo.isoNumber}</div>
+                          {photo.caption && <div className="text-[9px] text-slate-700 truncate font-medium">{photo.caption}</div>}
+                          <div className="text-[8px] text-slate-500 truncate">
+                            {photo.uploadedByName || "Welder"} · {new Date(photo.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* === ADMIN/SUPERVISOR EVIDENCE PHOTOS === */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <div className="text-[10px] font-bold tracking-widest text-slate-700">EVIDENCE PHOTOS ({(selectedZone.photos || []).length})</div>
+              <div className="text-[10px] font-bold tracking-widest text-slate-700 flex items-center gap-1.5">
+                <Shield size={11} className="text-slate-700" />
+                SUPERVISOR EVIDENCE PHOTOS ({(selectedZone.photos || []).length})
+              </div>
               <label className="bg-blue-700 hover:bg-blue-800 text-white text-[10px] font-bold tracking-widest px-2.5 py-1 rounded cursor-pointer transition-colors inline-flex items-center gap-1">
                 <Upload size={10} /> ADD PHOTO
                 <input type="file" accept="image/*" onChange={(e) => handlePhotoUpload(selectedZone.id, e)} className="hidden" />
               </label>
             </div>
             {(selectedZone.photos || []).length === 0 ? (
-              <div className="bg-slate-50 border border-dashed border-slate-200 rounded p-4 text-center text-xs text-slate-400 italic">No photos yet. Add evidence photos of the completed work.</div>
+              <div className="bg-slate-50 border border-dashed border-slate-200 rounded p-3 text-center text-xs text-slate-400 italic">No supervisor photos yet. Add evidence photos of the completed work.</div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {(selectedZone.photos || []).map((photo) => (
@@ -3795,7 +4007,7 @@ function ProjectMapView({ project, isos, dailyLogs, inspections, onSaveProject, 
       )}
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFloorPlanUpload} className="hidden" />
       {showZoneModal && (
-        <ZoneModal zone={showZoneModal.isNew ? null : showZoneModal} rect={showZoneModal.isNew ? showZoneModal.rect : showZoneModal.rect} isos={isos} onSave={(data) => {
+        <ZoneModal zone={showZoneModal.isNew ? null : showZoneModal} rect={showZoneModal.isNew ? showZoneModal.rect : showZoneModal.rect} isos={isos} welders={welders} onSave={(data) => {
           if (showZoneModal.isNew) { onAddZone({ ...data, rect: showZoneModal.rect }); }
           else { onUpdateZone(showZoneModal.id, data); }
           setShowZoneModal(null);
@@ -3825,33 +4037,46 @@ function ProjectSetupModal({ project, onSave, onClose, onReplacePlan }) {
   );
 }
 
-function ZoneModal({ zone, rect, isos, onSave, onClose }) {
+function ZoneModal({ zone, rect, isos, welders, onSave, onClose }) {
   const [name, setName] = useState(zone?.name || "");
   const [description, setDescription] = useState(zone?.description || "");
   const [deadline, setDeadline] = useState(zone?.deadline || "");
+  const [welderId, setWelderId] = useState(zone?.welderId || "");
   const [isoIds, setIsoIds] = useState(zone?.isoIds || []);
   const [search, setSearch] = useState("");
   const toggleIso = (id) => setIsoIds(isoIds.includes(id) ? isoIds.filter((x) => x !== id) : [...isoIds, id]);
-  const submit = () => { if (!name.trim()) { alert("Zone name is required"); return; } onSave({ name: name.trim(), description: description.trim(), deadline, isoIds }); };
+  const submit = () => { if (!name.trim()) { alert("Zone name is required"); return; } onSave({ name: name.trim(), description: description.trim(), deadline, welderId: welderId || null, isoIds }); };
   const filteredIsos = isos.filter((i) => !search || i.number.toLowerCase().includes(search.toLowerCase()));
   return (
     <ModalShell title={zone ? "EDIT ZONE" : "NEW ZONE"} onClose={onClose}>
       <Field label="ZONE NAME *"><input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} placeholder="e.g. Mezzanine, Clean Room A" autoFocus /></Field>
       <Field label="DESCRIPTION (OPTIONAL)"><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={inputCls + " resize-none"} placeholder="e.g. HVAC mechanical equipment installation" /></Field>
-      <Field label="DEADLINE"><input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} className={inputCls} /></Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="DEADLINE"><input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} className={inputCls} /></Field>
+        <Field label="LEAD WELDER">
+          <select value={welderId} onChange={(e) => setWelderId(e.target.value)} className={selectCls}>
+            <option value="">— Unassigned —</option>
+            {(welders || []).map((w) => <option key={w.id} value={w.id}>{w.name} (#{w.welderId})</option>)}
+          </select>
+        </Field>
+      </div>
       <Field label={`ASSIGN ISOs (${isoIds.length} selected)`}>
         <input value={search} onChange={(e) => setSearch(e.target.value)} className={inputCls + " mb-2"} placeholder="Search ISOs..." />
         <div className="max-h-48 overflow-y-auto border border-slate-200 rounded">
           {filteredIsos.length === 0 ? (
             <div className="text-xs text-slate-400 italic p-3 text-center">No ISOs available. Create ISOs first.</div>
           ) : (
-            filteredIsos.map((iso) => (
-              <label key={iso.id} className="flex items-center gap-2 p-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-b-0">
-                <input type="checkbox" checked={isoIds.includes(iso.id)} onChange={() => toggleIso(iso.id)} />
-                <span className="font-mono text-xs text-blue-700 font-bold flex-1 truncate">{iso.number}</span>
-                <span className="text-[10px] text-slate-500">{iso.size || ""}</span>
-              </label>
-            ))
+            filteredIsos.map((iso) => {
+              const isoWelder = welders?.find((w) => w.id === iso.welderId);
+              return (
+                <label key={iso.id} className="flex items-center gap-2 p-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-b-0">
+                  <input type="checkbox" checked={isoIds.includes(iso.id)} onChange={() => toggleIso(iso.id)} />
+                  <span className="font-mono text-xs text-blue-700 font-bold flex-1 truncate">{iso.number}</span>
+                  {isoWelder && <span className="text-[9px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-semibold">{isoWelder.name.split(" ")[0]}</span>}
+                  <span className="text-[10px] text-slate-500">{iso.size || ""}</span>
+                </label>
+              );
+            })
           )}
         </div>
       </Field>
