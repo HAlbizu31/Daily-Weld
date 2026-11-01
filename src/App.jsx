@@ -2979,7 +2979,7 @@ function ReportsView({ data, currentUser }) {
     let welds = 0, supports = 0, linearFeet = 0;
     const wSystems = new Set();
     const wIsos = new Set();
-    const wIsoSizes = {}; // iso -> {welds, supports, linearFeet, systems}
+    const wIsoSizes = {}; // iso -> {welds, supports, linearFeet, weldNumbers}
     wlogs.forEach((l) => (l.entries || []).forEach((e) => {
       welds++;
       supports += Number(e.supports) || 0;
@@ -2988,10 +2988,11 @@ function ReportsView({ data, currentUser }) {
       if (sys && sys !== "—") wSystems.add(sys);
       if (e.iso) {
         wIsos.add(e.iso);
-        if (!wIsoSizes[e.iso]) wIsoSizes[e.iso] = { welds: 0, supports: 0, linearFeet: 0 };
+        if (!wIsoSizes[e.iso]) wIsoSizes[e.iso] = { welds: 0, supports: 0, linearFeet: 0, weldNumbers: [] };
         wIsoSizes[e.iso].welds++;
         wIsoSizes[e.iso].supports += Number(e.supports) || 0;
         wIsoSizes[e.iso].linearFeet += Number(e.linearFeet) || 0;
+        if (e.weldNumber) wIsoSizes[e.iso].weldNumbers.push(e.weldNumber);
       }
     }));
     const wInsp = inspectionsInRange.filter((i) => {
@@ -3006,7 +3007,12 @@ function ReportsView({ data, currentUser }) {
       const cd = (c.createdAt || "").split("T")[0];
       return c.welderId === w.id && cd && cd >= start && cd <= end;
     });
-    const wIsoRows = Object.entries(wIsoSizes).map(([num, v]) => ({ number: num, ...v })).sort((a, b) => b.welds - a.welds);
+    const sortW = (arr) => {
+      const uniq = [...new Set(arr)];
+      uniq.sort((a, b) => (parseInt((a || "").replace(/\D/g, ""), 10) || 0) - (parseInt((b || "").replace(/\D/g, ""), 10) || 0));
+      return uniq;
+    };
+    const wIsoRows = Object.entries(wIsoSizes).map(([num, v]) => ({ number: num, ...v, weldNumbers: sortW(v.weldNumbers || []) })).sort((a, b) => b.welds - a.welds);
     return {
       welder: w, welds, supports, linearFeet,
       systems: Array.from(wSystems).sort(),
@@ -3032,16 +3038,38 @@ function ReportsView({ data, currentUser }) {
   }));
   const systemRows = Object.entries(systemBreakdown).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.welds - a.welds);
 
-  // === By ISO breakdown ===
+  // === By ISO breakdown (with weld numbers + welders) ===
   const isoBreakdown = {};
   filteredLogs.forEach((l) => (l.entries || []).forEach((e) => {
     if (!e.iso) return;
-    if (!isoBreakdown[e.iso]) isoBreakdown[e.iso] = { welds: 0, supports: 0, linearFeet: 0 };
+    if (!isoBreakdown[e.iso]) isoBreakdown[e.iso] = { welds: 0, supports: 0, linearFeet: 0, weldNumbers: [], welders: new Set(), system: "" };
     isoBreakdown[e.iso].welds++;
     isoBreakdown[e.iso].supports += Number(e.supports) || 0;
     isoBreakdown[e.iso].linearFeet += Number(e.linearFeet) || 0;
+    if (e.weldNumber) isoBreakdown[e.iso].weldNumbers.push(e.weldNumber);
+    const w = (data.welders || []).find((x) => x.id === l.welderId);
+    if (w) isoBreakdown[e.iso].welders.add(w.name);
+    if (!isoBreakdown[e.iso].system) isoBreakdown[e.iso].system = getSystemFromEntry(e);
   }));
-  const isoRows = Object.entries(isoBreakdown).map(([number, v]) => ({ number, ...v })).sort((a, b) => b.welds - a.welds);
+  // Natural-sort weld numbers (FW01 < FW02 < FW10) and build display string
+  const sortWeldNums = (arr) => {
+    const uniq = [...new Set(arr)];
+    uniq.sort((a, b) => {
+      const na = parseInt((a || "").replace(/\D/g, ""), 10) || 0;
+      const nb = parseInt((b || "").replace(/\D/g, ""), 10) || 0;
+      return na - nb;
+    });
+    return uniq;
+  };
+  const isoRows = Object.entries(isoBreakdown).map(([number, v]) => ({
+    number,
+    welds: v.welds,
+    supports: v.supports,
+    linearFeet: v.linearFeet,
+    weldNumbers: sortWeldNums(v.weldNumbers),
+    welderNames: Array.from(v.welders).join(", "),
+    system: v.system,
+  })).sort((a, b) => b.welds - a.welds);
 
   // === Daily trend ===
   const dailyTrend = {};
@@ -3138,6 +3166,15 @@ ${topWelder ? `\n🏆 Top performer: ${topWelder.welder.name} — ${fmtNum(topWe
     const w = window.open("", "_blank");
     const welderRowsHTML = welderBreakdown.map((r) => `<tr><td style="font-weight:700">${r.welder.name}</td><td style="text-align:right">${fmtNum(r.welds)}</td><td style="text-align:right">${fmtNum(r.supports)}</td><td style="text-align:right">${fmtNum(r.linearFeet)}</td><td style="text-align:right">${r.passRate !== null ? r.passRate + "%" : "—"}</td></tr>`).join("");
     const systemRowsHTML = systemRows.map((r) => `<tr><td style="font-weight:700">${r.name}</td><td style="text-align:right">${fmtNum(r.welds)}</td><td style="text-align:right">${fmtNum(r.supports)}</td><td style="text-align:right">${fmtNum(r.linearFeet)}</td></tr>`).join("");
+    const isoRowsHTML = isoRows.map((r) => `<tr>
+      <td style="font-family:monospace;font-weight:700;color:#1e40af">${r.number}</td>
+      <td style="font-size:8pt;color:#475569">${r.system || "—"}</td>
+      <td style="font-size:8pt;color:#475569">${r.welderNames || "—"}</td>
+      <td style="text-align:right;font-weight:700">${fmtNum(r.welds)}</td>
+      <td style="text-align:right">${fmtNum(r.supports)}</td>
+      <td style="text-align:right">${fmtNum(r.linearFeet)}</td>
+      <td style="font-family:monospace;font-size:7.5pt;color:#334155;word-break:break-word">${r.weldNumbers.join(", ") || "—"}</td>
+    </tr>`).join("");
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Weld Report — ${label} — ${fmtDateRange()}</title>
 <style>@page{size:letter;margin:0.5in}body{font-family:Helvetica,Arial,sans-serif;color:#0f172a;margin:0;padding:0}
 .pb{position:fixed;top:0;left:0;right:0;background:#1e3a8a;color:white;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;z-index:1000}
@@ -3156,12 +3193,25 @@ h1{font-size:22pt;font-weight:900;color:#0f172a;margin:0 0 4px 0}
 .kpi .num{font-size:28pt;font-weight:900;color:#1e40af;line-height:1}
 .kpi .lbl{font-size:8pt;color:#1e3a8a;letter-spacing:1.5pt;font-weight:800;text-transform:uppercase;margin-top:6pt}
 .section-title{font-size:12pt;font-weight:900;color:#0f172a;letter-spacing:1pt;text-transform:uppercase;margin:20pt 0 8pt 0;padding-bottom:4pt;border-bottom:1px solid #cbd5e1}
-table{width:100%;border-collapse:collapse;margin-bottom:16pt;font-size:10pt}
-th{background:#1e3a8a;color:white;padding:8pt;font-size:8pt;font-weight:700;letter-spacing:1pt;text-align:left;text-transform:uppercase}
-th:not(:first-child){text-align:right}
-td{padding:7pt 8pt;border-bottom:1px solid #e2e8f0}
+.section-subtitle{font-size:8pt;color:#64748b;font-weight:600;margin-top:-4pt;margin-bottom:8pt;font-style:italic}
+table{width:100%;border-collapse:collapse;margin-bottom:16pt;font-size:10pt;table-layout:fixed}
+th{background:#1e3a8a;color:white;padding:8pt;font-size:8pt;font-weight:700;letter-spacing:1pt;text-align:left;text-transform:uppercase;vertical-align:middle}
+th.right{text-align:right}
+td{padding:7pt 8pt;border-bottom:1px solid #e2e8f0;vertical-align:top;word-break:break-word}
 tr:nth-child(even) td{background:#f8fafc}
+.simple-table{table-layout:auto}
+.simple-table th:not(:first-child){text-align:right}
+.iso-table th{font-size:7pt;padding:6pt 6pt}
+.iso-table td{font-size:9pt;padding:6pt 6pt}
+.iso-table col.c1{width:1.3in}
+.iso-table col.c2{width:0.55in}
+.iso-table col.c3{width:1.1in}
+.iso-table col.c4{width:0.5in}
+.iso-table col.c5{width:0.65in}
+.iso-table col.c6{width:0.65in}
+.iso-table col.c7{width:1.75in}
 .ft{margin-top:24pt;padding-top:12pt;border-top:1px solid #cbd5e1;font-size:8pt;color:#64748b;text-align:center}
+tr{page-break-inside:avoid}
 </style></head><body>
 <div class="pb no-print"><div style="font-weight:700;letter-spacing:2px">📊 WELD REPORT — ${label}</div><div><button class="print-btn" onclick="window.print()">🖨️ PRINT / SAVE PDF</button><button class="close-btn" onclick="window.close()">✕ CLOSE</button></div></div>
 <div class="content">
@@ -3177,11 +3227,25 @@ tr:nth-child(even) td{background:#f8fafc}
 <div class="kpi"><div class="num">${passRate !== null ? passRate + "%" : "—"}</div><div class="lbl">Pass Rate</div></div>
 </div>
 ${welderBreakdown.length > 0 ? `<div class="section-title">Breakdown by Welder</div>
-<table><thead><tr><th>Welder</th><th>Welds</th><th>Supports</th><th>Linear Feet</th><th>Pass Rate</th></tr></thead>
+<table class="simple-table"><thead><tr><th>Welder</th><th class="right">Welds</th><th class="right">Supports</th><th class="right">Linear Feet</th><th class="right">Pass Rate</th></tr></thead>
 <tbody>${welderRowsHTML}</tbody></table>` : ""}
 ${systemRows.length > 0 ? `<div class="section-title">Breakdown by System</div>
-<table><thead><tr><th>System</th><th>Welds</th><th>Supports</th><th>Linear Feet</th></tr></thead>
+<table class="simple-table"><thead><tr><th>System</th><th class="right">Welds</th><th class="right">Supports</th><th class="right">Linear Feet</th></tr></thead>
 <tbody>${systemRowsHTML}</tbody></table>` : ""}
+${isoRows.length > 0 ? `<div class="section-title">Breakdown by ISO</div>
+<div class="section-subtitle">${isoRows.length} ISO${isoRows.length === 1 ? "" : "s"} worked · showing which specific weld numbers (FW01, FW02...) were completed on each ISO</div>
+<table class="iso-table">
+<colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"><col class="c6"><col class="c7"></colgroup>
+<thead><tr>
+<th>ISO Number</th>
+<th>System</th>
+<th>Welder(s)</th>
+<th class="right">Welds</th>
+<th class="right">Supports</th>
+<th class="right">Lin. Ft</th>
+<th>Weld Numbers Completed</th>
+</tr></thead>
+<tbody>${isoRowsHTML}</tbody></table>` : ""}
 <div class="ft">Report generated by SWCS · Sanitary Weld Control System · ${new Date().toISOString().split("T")[0]}</div>
 </div></body></html>`;
     w.document.write(html);
@@ -3345,25 +3409,29 @@ ${systemRows.length > 0 ? `<div class="section-title">Breakdown by System</div>
                       {r.isoRows.length > 0 && (
                         <div className="bg-white rounded border border-slate-200 overflow-hidden">
                           <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 text-[10px] font-black tracking-widest text-slate-600">
-                            PER-ISO BREAKDOWN
+                            PER-ISO BREAKDOWN · WITH WELD NUMBERS
                           </div>
-                          <div className="max-h-64 overflow-y-auto">
+                          <div className="max-h-80 overflow-y-auto">
                             <table className="w-full text-sm">
                               <thead className="bg-slate-50 sticky top-0">
                                 <tr>
-                                  <th className="px-4 py-2 text-left text-[9px] font-black tracking-widest text-slate-500">ISO</th>
-                                  <th className="px-4 py-2 text-right text-[9px] font-black tracking-widest text-slate-500">WELDS</th>
-                                  <th className="px-4 py-2 text-right text-[9px] font-black tracking-widest text-slate-500">SUPPORTS</th>
-                                  <th className="px-4 py-2 text-right text-[9px] font-black tracking-widest text-slate-500">FEET</th>
+                                  <th className="px-3 py-2 text-left text-[9px] font-black tracking-widest text-slate-500 w-32">ISO</th>
+                                  <th className="px-2 py-2 text-right text-[9px] font-black tracking-widest text-slate-500 w-14">WELDS</th>
+                                  <th className="px-2 py-2 text-right text-[9px] font-black tracking-widest text-slate-500 w-14">SUP</th>
+                                  <th className="px-2 py-2 text-right text-[9px] font-black tracking-widest text-slate-500 w-14">FEET</th>
+                                  <th className="px-3 py-2 text-left text-[9px] font-black tracking-widest text-slate-500">WELD #s</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {r.isoRows.map((row) => (
-                                  <tr key={row.number} className="hover:bg-slate-50 border-b border-slate-100 last:border-b-0">
-                                    <td className="px-4 py-2 font-mono font-bold text-blue-700 text-xs">{row.number}</td>
-                                    <td className="px-4 py-2 text-right font-mono font-bold text-slate-900">{fmtNum(row.welds)}</td>
-                                    <td className="px-4 py-2 text-right font-mono text-emerald-700">{fmtNum(row.supports)}</td>
-                                    <td className="px-4 py-2 text-right font-mono text-purple-700">{fmtNum(row.linearFeet)}</td>
+                                  <tr key={row.number} className="hover:bg-slate-50 border-b border-slate-100 last:border-b-0 align-top">
+                                    <td className="px-3 py-2 font-mono font-bold text-blue-700 text-xs">{row.number}</td>
+                                    <td className="px-2 py-2 text-right font-mono font-bold text-slate-900">{fmtNum(row.welds)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-emerald-700">{fmtNum(row.supports)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-purple-700">{fmtNum(row.linearFeet)}</td>
+                                    <td className="px-3 py-2 font-mono text-[10px] text-slate-700 break-all">
+                                      {(row.weldNumbers || []).join(", ") || <span className="text-slate-400 italic">—</span>}
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
