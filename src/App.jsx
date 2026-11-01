@@ -10,6 +10,7 @@ const initialData = {
     { id: "u2", username: "qc", password: "qc", role: "qc", name: "QC Inspector" },
   ],
   welders: [], isos: [], dailyLogs: [], inspections: [], tools: [], systems: [], coupons: [],
+  project: null, // { id, name, client, jobNumber, floorPlanUrl, zones: [...] }
 };
 
 const inputCls = "w-full bg-white border border-slate-300 text-sm px-3 py-2 rounded focus:border-blue-600 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all";
@@ -461,6 +462,36 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
   const updateCoupon = (id, fields) => setData((d) => ({ ...d, coupons: (d.coupons || []).map((c) => c.id === id ? { ...c, ...fields } : c) }));
   const deleteCoupon = (id) => { if (!confirm("Delete coupon?")) return; setData((d) => ({ ...d, coupons: (d.coupons || []).filter((c) => c.id !== id) })); };
 
+  // === PROJECT & ZONES handlers ===
+  const saveProject = (projectData) => setData((d) => ({ ...d, project: { ...(d.project || {}), ...projectData } }));
+  const addZone = (zone) => setData((d) => ({
+    ...d,
+    project: {
+      ...(d.project || { id: "p1", name: "New Project", zones: [] }),
+      zones: [...((d.project && d.project.zones) || []), { ...zone, id: Date.now().toString(), photos: zone.photos || [], isoIds: zone.isoIds || [] }],
+    },
+  }));
+  const updateZone = (zoneId, fields) => setData((d) => ({
+    ...d,
+    project: d.project ? { ...d.project, zones: (d.project.zones || []).map((z) => z.id === zoneId ? { ...z, ...fields } : z) } : d.project,
+  }));
+  const deleteZone = (zoneId) => { if (!confirm("Delete this zone?")) return; setData((d) => ({
+    ...d,
+    project: d.project ? { ...d.project, zones: (d.project.zones || []).filter((z) => z.id !== zoneId) } : d.project,
+  })); };
+  const addZonePhoto = (zoneId, photoData) => setData((d) => ({
+    ...d,
+    project: d.project ? { ...d.project, zones: (d.project.zones || []).map((z) =>
+      z.id === zoneId ? { ...z, photos: [...(z.photos || []), { id: Date.now().toString(), url: photoData.url, caption: photoData.caption || "", uploadedAt: new Date().toISOString() }] } : z
+    ) } : d.project,
+  }));
+  const deleteZonePhoto = (zoneId, photoId) => setData((d) => ({
+    ...d,
+    project: d.project ? { ...d.project, zones: (d.project.zones || []).map((z) =>
+      z.id === zoneId ? { ...z, photos: (z.photos || []).filter((p) => p.id !== photoId) } : z
+    ) } : d.project,
+  }));
+
   // === DEMO DATA for presentations ===
   const loadDemoData = () => {
     if (!confirm("Load demo data? This will replace all current data with a realistic WARP10 HYGIENIC project demo.")) return;
@@ -633,7 +664,53 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
       { id: "t10", name: "Purge Dam Kit 1-4 inch", serial: "PDK-040", welderId: null },
     ];
 
-    setData((d) => ({ ...d, welders, systems, isos, dailyLogs, inspections, coupons, tools }));
+    // === DEMO PROJECT with pre-drawn zones (uses an inline SVG floor plan placeholder) ===
+    // The SVG mimics a biotech facility floor plan — supervisor can replace with real plan anytime
+    const demoFloorPlanSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+<rect width="1200" height="900" fill="#f8f5e8"/>
+<g stroke="#333" stroke-width="2" fill="none">
+<rect x="40" y="40" width="1120" height="820" stroke-width="4"/>
+<line x1="40" y1="300" x2="1160" y2="300"/><line x1="40" y1="600" x2="1160" y2="600"/>
+<line x1="400" y1="40" x2="400" y2="860"/><line x1="800" y1="40" x2="800" y2="860"/>
+<rect x="80" y="80" width="280" height="180"/><rect x="440" y="80" width="320" height="180"/><rect x="840" y="80" width="280" height="180"/>
+<rect x="80" y="340" width="280" height="220"/><rect x="440" y="340" width="320" height="220"/><rect x="840" y="340" width="280" height="220"/>
+<rect x="80" y="640" width="280" height="180"/><rect x="440" y="640" width="320" height="180"/><rect x="840" y="640" width="280" height="180"/>
+</g>
+<g font-family="Helvetica,Arial" font-size="18" fill="#555" text-anchor="middle" font-weight="bold">
+<text x="220" y="175">MEZZANINE</text><text x="600" y="175">HVAC MECHANICAL</text><text x="980" y="175">BUFFER PREP</text>
+<text x="220" y="455">CENTRAL CIP</text><text x="600" y="455">PROCESS CORRIDOR</text><text x="980" y="455">MEDIA PREP</text>
+<text x="220" y="735">LOADING PLATFORM</text><text x="600" y="735">AUTOCLAVE ROOM</text><text x="980" y="735">ELECTRICAL SUB.</text>
+</g>
+<g font-family="Helvetica,Arial" font-size="11" fill="#888" text-anchor="middle">
+<text x="220" y="200">737-10200</text><text x="600" y="200">737-10250</text><text x="980" y="200">737-10300</text>
+<text x="220" y="480">737-10202</text><text x="600" y="480">737-10400</text><text x="980" y="480">737-20600</text>
+<text x="220" y="760">737-20700</text><text x="600" y="760">737-20620</text><text x="980" y="760">737-20231</text>
+</g>
+<text x="600" y="30" font-family="Helvetica,Arial" font-size="14" fill="#333" text-anchor="middle" font-weight="bold">BIOTECH FACILITY — FLOOR PLAN LVL 1</text>
+<text x="600" y="890" font-family="Helvetica,Arial" font-size="10" fill="#888" text-anchor="middle" font-style="italic">Replace with your actual floor plan</text>
+</svg>`;
+    const demoFloorPlanUrl = `data:image/svg+xml;base64,${btoa(demoFloorPlanSvg)}`;
+    const futureDate = (days) => { const dt = new Date(today); dt.setDate(dt.getDate() + days); return dt.toISOString().split("T")[0]; };
+    const project = {
+      id: "p1",
+      name: "Biotech Facility - Project X",
+      client: "Confidential Client",
+      jobNumber: "24.715.0002",
+      floorPlanUrl: demoFloorPlanUrl,
+      zones: [
+        { id: "z1", name: "Mezzanine", description: "HVAC and utility piping on mezzanine level", rect: { x: 6.5, y: 10, width: 23, height: 20 }, deadline: futureDate(45), isoIds: ["i01", "i02"], photos: [] },
+        { id: "z2", name: "HVAC Mechanical", description: "Air handling units and ductwork", rect: { x: 36.5, y: 10, width: 27, height: 20 }, deadline: futureDate(60), isoIds: ["i03"], photos: [] },
+        { id: "z3", name: "Buffer Prep", description: "Buffer preparation vessels and heat exchanger", rect: { x: 70, y: 10, width: 23, height: 20 }, deadline: futureDate(30), isoIds: ["i04", "i05"], photos: [] },
+        { id: "z4", name: "Central CIP", description: "Central CIP tanks and supply header", rect: { x: 6.5, y: 38, width: 23, height: 24 }, deadline: futureDate(20), isoIds: ["i12", "i13"], photos: [] },
+        { id: "z5", name: "Process Corridor", description: "Main process header distribution", rect: { x: 36.5, y: 38, width: 27, height: 24 }, deadline: futureDate(90), isoIds: ["i06", "i07"], photos: [] },
+        { id: "z6", name: "Media Prep", description: "Media preparation and perfusion vessels", rect: { x: 70, y: 38, width: 23, height: 24 }, deadline: futureDate(75), isoIds: ["i08", "i09"], photos: [] },
+        { id: "z7", name: "Loading Platform", description: "Two-story loading platform and dock equipment", rect: { x: 6.5, y: 71, width: 23, height: 20 }, deadline: futureDate(-5), isoIds: ["i14"], photos: [] },
+        { id: "z8", name: "Autoclave Room", description: "Clean/dirty wash staging and autoclave", rect: { x: 36.5, y: 71, width: 27, height: 20 }, deadline: futureDate(15), isoIds: ["i10", "i11"], photos: [] },
+        { id: "z9", name: "Electrical Substation", description: "Not in current scope", rect: { x: 70, y: 71, width: 23, height: 20 }, deadline: futureDate(120), isoIds: ["i15"], photos: [] },
+      ],
+    };
+
+    setData((d) => ({ ...d, welders, systems, isos, dailyLogs, inspections, coupons, tools, project }));
     alert(
       "✓ Demo data loaded successfully!\n\n" +
       `Project: WARP10 Hygienic (Job #24.715.0002)\n` +
@@ -659,7 +736,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
   const clearAllData = () => {
     if (!confirm("Clear ALL data? This cannot be undone.")) return;
     if (!confirm("Are you ABSOLUTELY sure? All welders, ISOs, logs, inspections, coupons and tools will be deleted.")) return;
-    setData((d) => ({ ...d, welders: [], isos: [], dailyLogs: [], inspections: [], tools: [], systems: [], coupons: [] }));
+    setData((d) => ({ ...d, welders: [], isos: [], dailyLogs: [], inspections: [], tools: [], systems: [], coupons: [], project: null }));
     alert("All data cleared.");
   };
 
@@ -716,6 +793,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
 
   const tabs = role === "admin" ? [
     { id: "dashboard", icon: BarChart3, label: "DASHBOARD" },
+    { id: "projectmap", icon: Layers, label: "PROJECT MAP" },
     { id: "welders", icon: Users, label: "WELDERS" },
     { id: "isos", icon: FileText, label: "ISOS" },
     { id: "logs", icon: ClipboardList, label: "DAILY LOG" },
@@ -852,6 +930,7 @@ function AppShell({ data, setData, currentUser, logout, view, setView }) {
         {view === "logs" && <LogsView role={role} currentUser={currentUser} logs={visibleLogs} welders={data.welders} isos={data.isos} inspections={data.inspections} onSaveLog={saveLog} onDeleteLog={deleteLog} onAddEntry={addEntry} onDeleteEntry={deleteEntry} onUpdateEntry={updateEntry} />}
         {view === "inspections" && (role === "admin" || role === "qc") && <InspectionsView role={role} logs={data.dailyLogs} welders={data.welders} inspections={data.inspections} onAdd={addInspection} onDelete={deleteInspection} />}
         {view === "coupons" && <CouponsView role={role} currentUser={currentUser} welders={data.welders} coupons={data.coupons || []} dailyLogs={data.dailyLogs} onAdd={addCoupon} onUpdate={updateCoupon} onDelete={deleteCoupon} />}
+        {view === "projectmap" && role === "admin" && <ProjectMapView project={data.project} isos={data.isos} dailyLogs={data.dailyLogs} inspections={data.inspections} onSaveProject={saveProject} onAddZone={addZone} onUpdateZone={updateZone} onDeleteZone={deleteZone} onAddPhoto={addZonePhoto} onDeletePhoto={deleteZonePhoto} />}
         {view === "tools" && <ToolsView role={role} currentUser={currentUser} tools={data.tools} welders={data.welders} onAdd={addTool} onDelete={deleteTool} onReassign={reassignTool} />}
         {view === "charts" && role === "admin" && <ChartsView data={data} getEntryRef={getEntryRef} />}
         {view === "codes" && <CodesView />}
@@ -3308,6 +3387,478 @@ function CouponRejectModal({ coupon, welder, onClose, onConfirm }) {
   );
 }
 
+
+// ===================== PROJECT MAP VIEW =====================
+function ProjectMapView({ project, isos, dailyLogs, inspections, onSaveProject, onAddZone, onUpdateZone, onDeleteZone, onAddPhoto, onDeletePhoto }) {
+  const [showSetupModal, setShowSetupModal] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [drawingRect, setDrawingRect] = useState(null); // {startX, startY, endX, endY}
+  const [showZoneModal, setShowZoneModal] = useState(null); // zone being edited OR {isNew: true, rect: {...}}
+  const [selectedZoneId, setSelectedZoneId] = useState(null);
+  const [showPhotoModal, setShowPhotoModal] = useState(null); // zone id
+  const mapContainerRef = React.useRef(null);
+  const fileInputRef = React.useRef(null);
+
+  // === Compute zone completion % based on assigned ISOs ===
+  const getZoneProgress = (zone) => {
+    const zoneIsos = (zone.isoIds || []).map((id) => isos.find((i) => i.id === id)).filter(Boolean);
+    if (zoneIsos.length === 0) return { pct: 0, completedIsos: 0, totalIsos: 0, totalWelds: 0, completedWelds: 0 };
+    let totalWelds = 0, completedWelds = 0, completedIsos = 0;
+    zoneIsos.forEach((iso) => {
+      const isoLogs = dailyLogs.filter((l) => l.entries.some((e) => e.iso === iso.number));
+      const isoEntries = isoLogs.flatMap((l) => l.entries.filter((e) => e.iso === iso.number).map((e) => ({...e, logId: l.id})));
+      totalWelds += isoEntries.length;
+      const accepted = isoEntries.filter((e) => inspections.find((i) => i.weldRef === `${e.logId}-${e.id}` && i.status === "accepted")).length;
+      completedWelds += accepted;
+      if (isoEntries.length > 0 && accepted === isoEntries.length) completedIsos++;
+    });
+    const pct = totalWelds === 0 ? 0 : Math.round((completedWelds / totalWelds) * 100);
+    return { pct, completedIsos, totalIsos: zoneIsos.length, totalWelds, completedWelds };
+  };
+
+  // === Determine zone color based on progress and deadline ===
+  const getZoneColor = (zone) => {
+    const { pct } = getZoneProgress(zone);
+    const now = new Date();
+    const deadline = zone.deadline ? new Date(zone.deadline) : null;
+    const isOverdue = deadline && deadline < now && pct < 100;
+    if (pct === 100) return { fill: "rgba(16, 185, 129, 0.35)", stroke: "#059669", label: "COMPLETE" };
+    if (isOverdue) return { fill: "rgba(220, 38, 38, 0.35)", stroke: "#dc2626", label: "OVERDUE" };
+    if (pct >= 50) return { fill: "rgba(234, 179, 8, 0.35)", stroke: "#ca8a04", label: "IN PROGRESS" };
+    if (pct > 0) return { fill: "rgba(249, 115, 22, 0.35)", stroke: "#ea580c", label: "STARTED" };
+    return { fill: "rgba(139, 92, 246, 0.3)", stroke: "#7c3aed", label: "NOT STARTED" };
+  };
+
+  // === Handlers ===
+  const handleFloorPlanUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      onSaveProject({
+        id: project?.id || "p1",
+        name: project?.name || "New Project",
+        client: project?.client || "",
+        jobNumber: project?.jobNumber || "",
+        floorPlanUrl: ev.target.result,
+        zones: project?.zones || [],
+      });
+      setShowSetupModal(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleMouseDown = (e) => {
+    if (!editMode || !mapContainerRef.current) return;
+    const rect = mapContainerRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setDrawingRect({ startX: x, startY: y, endX: x, endY: y });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!drawingRect || !mapContainerRef.current) return;
+    const rect = mapContainerRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setDrawingRect({ ...drawingRect, endX: x, endY: y });
+  };
+
+  const handleMouseUp = () => {
+    if (!drawingRect) return;
+    const w = Math.abs(drawingRect.endX - drawingRect.startX);
+    const h = Math.abs(drawingRect.endY - drawingRect.startY);
+    if (w < 3 || h < 3) { setDrawingRect(null); return; }
+    const newRect = {
+      x: Math.min(drawingRect.startX, drawingRect.endX),
+      y: Math.min(drawingRect.startY, drawingRect.endY),
+      width: w,
+      height: h,
+    };
+    setShowZoneModal({ isNew: true, rect: newRect });
+    setDrawingRect(null);
+  };
+
+  const handlePhotoUpload = (zoneId, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const caption = prompt("Add a caption for this photo (optional):") || "";
+      onAddPhoto(zoneId, { url: ev.target.result, caption });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // === NO PROJECT YET === Welcome screen
+  if (!project || !project.floorPlanUrl) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900">PROJECT MAP</h2>
+          <p className="text-slate-500 text-xs tracking-wider font-semibold">VISUAL PROGRESS TRACKING BY ZONE</p>
+        </div>
+        <div className="bg-gradient-to-br from-blue-700 to-blue-900 text-white rounded-xl p-8 text-center">
+          <Layers size={48} className="mx-auto mb-4 opacity-80" />
+          <h3 className="text-2xl font-black mb-2">Set Up Your Project Map</h3>
+          <p className="text-blue-100 text-sm max-w-xl mx-auto mb-6">
+            Upload your floor plan, draw work zones directly on it, assign ISOs to each zone, and track completion in real-time. Perfect for daily supervisor reports.
+          </p>
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFloorPlanUpload} className="hidden" />
+          <button onClick={() => fileInputRef.current?.click()} className="bg-white text-blue-700 hover:bg-blue-50 font-black px-6 py-3 rounded-lg shadow-md transition-all hover:scale-[1.02] tracking-widest text-sm inline-flex items-center gap-2">
+            <Upload size={16} /> UPLOAD FLOOR PLAN
+          </button>
+          <p className="text-xs text-blue-200 mt-4">Accepted: JPG, PNG (max ~5MB)</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="bg-white border border-slate-200 rounded-lg p-4">
+            <div className="w-10 h-10 bg-blue-100 text-blue-700 rounded-lg flex items-center justify-center mb-2"><Upload size={18} /></div>
+            <div className="font-bold text-sm text-slate-900 mb-1">1. Upload Plan</div>
+            <div className="text-xs text-slate-600">Upload your project's floor plan as JPG or PNG.</div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-lg p-4">
+            <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-lg flex items-center justify-center mb-2"><Square size={18} /></div>
+            <div className="font-bold text-sm text-slate-900 mb-1">2. Draw Zones</div>
+            <div className="text-xs text-slate-600">Click and drag to draw rectangular zones over your plan.</div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-lg p-4">
+            <div className="w-10 h-10 bg-amber-100 text-amber-700 rounded-lg flex items-center justify-center mb-2"><Activity size={18} /></div>
+            <div className="font-bold text-sm text-slate-900 mb-1">3. Track Progress</div>
+            <div className="text-xs text-slate-600">Zones auto-color based on % complete. Great for daily reports.</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // === HAS PROJECT === Main map view
+  const zones = project.zones || [];
+  const totalZones = zones.length;
+  const completedZones = zones.filter((z) => getZoneProgress(z).pct === 100).length;
+  const overdueZones = zones.filter((z) => { const d = z.deadline ? new Date(z.deadline) : null; return d && d < new Date() && getZoneProgress(z).pct < 100; }).length;
+  const overallPct = totalZones === 0 ? 0 : Math.round(zones.reduce((s, z) => s + getZoneProgress(z).pct, 0) / totalZones);
+  const selectedZone = zones.find((z) => z.id === selectedZoneId);
+
+  return (
+    <div className="space-y-4">
+      {/* === TOP BAR === */}
+      <div className="flex justify-between items-start flex-wrap gap-2">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900">{project.name || "Project Map"}</h2>
+          <p className="text-slate-500 text-xs tracking-wider font-semibold">
+            {project.client && `${project.client} · `}
+            {project.jobNumber && `JOB #${project.jobNumber} · `}
+            {totalZones} ZONES · {overallPct}% COMPLETE
+          </p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => setShowSetupModal(true)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold tracking-widest px-3 py-2 rounded border border-slate-200 transition-colors flex items-center gap-1">
+            <Edit2 size={11} /> EDIT PROJECT
+          </button>
+          <button onClick={() => setEditMode(!editMode)} className={`text-[10px] font-bold tracking-widest px-3 py-2 rounded transition-colors flex items-center gap-1 ${editMode ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-blue-700 hover:bg-blue-800 text-white"}`}>
+            {editMode ? <><CheckCircle2 size={11} /> DONE EDITING</> : <><Square size={11} /> DRAW ZONES</>}
+          </button>
+        </div>
+      </div>
+
+      {/* === KPI STRIP === */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="bg-white border border-slate-200 rounded-lg p-3">
+          <div className="text-[10px] font-bold tracking-widest text-slate-500">OVERALL PROGRESS</div>
+          <div className="text-2xl font-black text-blue-700 mt-1">{overallPct}%</div>
+          <div className="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden"><div className="h-full bg-blue-700" style={{ width: `${overallPct}%` }} /></div>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-lg p-3">
+          <div className="text-[10px] font-bold tracking-widest text-slate-500">ZONES COMPLETE</div>
+          <div className="text-2xl font-black text-emerald-700 mt-1">{completedZones}<span className="text-slate-400 text-sm font-normal"> / {totalZones}</span></div>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-lg p-3">
+          <div className="text-[10px] font-bold tracking-widest text-slate-500">IN PROGRESS</div>
+          <div className="text-2xl font-black text-amber-600 mt-1">{totalZones - completedZones - overdueZones}</div>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-lg p-3">
+          <div className="text-[10px] font-bold tracking-widest text-slate-500">OVERDUE</div>
+          <div className="text-2xl font-black text-red-600 mt-1">{overdueZones}</div>
+        </div>
+      </div>
+
+      {/* === MAIN LAYOUT === */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+
+        {/* === MAP CONTAINER === */}
+        <div className="lg:col-span-3">
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+            {editMode && (
+              <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-2 text-xs text-emerald-800 flex items-center gap-2">
+                <Square size={12} />
+                <span><strong>EDIT MODE:</strong> Click and drag on the plan to draw a new zone.</span>
+              </div>
+            )}
+            <div
+              ref={mapContainerRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={() => drawingRect && setDrawingRect(null)}
+              className="relative"
+              style={{ cursor: editMode ? "crosshair" : "default", userSelect: "none" }}
+            >
+              <img src={project.floorPlanUrl} alt="Floor Plan" className="w-full block" draggable={false} style={{ pointerEvents: "none" }} />
+              {/* Zone overlays */}
+              {zones.map((zone) => {
+                const color = getZoneColor(zone);
+                const { pct } = getZoneProgress(zone);
+                const isSelected = selectedZoneId === zone.id;
+                return (
+                  <div
+                    key={zone.id}
+                    onClick={(e) => { if (!editMode) { e.stopPropagation(); setSelectedZoneId(isSelected ? null : zone.id); } }}
+                    className={`absolute transition-all ${!editMode ? "cursor-pointer hover:brightness-110" : "pointer-events-none"} ${isSelected ? "ring-4 ring-blue-500 ring-opacity-70" : ""}`}
+                    style={{
+                      left: `${zone.rect.x}%`, top: `${zone.rect.y}%`,
+                      width: `${zone.rect.width}%`, height: `${zone.rect.height}%`,
+                      background: color.fill, border: `2px solid ${color.stroke}`,
+                    }}
+                  >
+                    <div className="absolute top-1 left-1 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-900 shadow-sm whitespace-nowrap max-w-full overflow-hidden text-ellipsis">
+                      {zone.name} · {pct}%
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Live drawing rect */}
+              {drawingRect && (
+                <div className="absolute border-2 border-dashed border-blue-600 bg-blue-500/20 pointer-events-none"
+                  style={{
+                    left: `${Math.min(drawingRect.startX, drawingRect.endX)}%`,
+                    top: `${Math.min(drawingRect.startY, drawingRect.endY)}%`,
+                    width: `${Math.abs(drawingRect.endX - drawingRect.startX)}%`,
+                    height: `${Math.abs(drawingRect.endY - drawingRect.startY)}%`,
+                  }}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="flex flex-wrap gap-3 mt-3 text-xs">
+            <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded" style={{background: "rgba(139,92,246,0.3)", border: "2px solid #7c3aed"}}/><span className="text-slate-600">Not Started</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded" style={{background: "rgba(249,115,22,0.35)", border: "2px solid #ea580c"}}/><span className="text-slate-600">Started (1-49%)</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded" style={{background: "rgba(234,179,8,0.35)", border: "2px solid #ca8a04"}}/><span className="text-slate-600">In Progress (50-99%)</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded" style={{background: "rgba(16,185,129,0.35)", border: "2px solid #059669"}}/><span className="text-slate-600">Complete</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded" style={{background: "rgba(220,38,38,0.35)", border: "2px solid #dc2626"}}/><span className="text-slate-600">Overdue</span></div>
+          </div>
+        </div>
+
+        {/* === SIDE PANEL === */}
+        <div className="lg:col-span-1">
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden sticky top-20">
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+              <h3 className="text-xs font-bold tracking-widest text-slate-800">WORK ZONES ({totalZones})</h3>
+            </div>
+            <div className="max-h-[600px] overflow-y-auto">
+              {zones.length === 0 ? (
+                <div className="p-5 text-center text-xs text-slate-400 italic">
+                  No zones yet.<br/>Click "DRAW ZONES" to start.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {zones.map((zone) => {
+                    const { pct, completedIsos, totalIsos } = getZoneProgress(zone);
+                    const color = getZoneColor(zone);
+                    const isSelected = selectedZoneId === zone.id;
+                    const deadlineDate = zone.deadline ? new Date(zone.deadline) : null;
+                    const daysLeft = deadlineDate ? Math.ceil((deadlineDate - new Date()) / (1000*60*60*24)) : null;
+                    return (
+                      <div key={zone.id} onClick={() => setSelectedZoneId(isSelected ? null : zone.id)} className={`p-3 cursor-pointer hover:bg-slate-50 transition-colors ${isSelected ? "bg-blue-50 border-l-4 border-l-blue-700" : ""}`}>
+                        <div className="flex items-start gap-2">
+                          <div className="w-3 h-3 rounded flex-shrink-0 mt-1" style={{background: color.fill, border: `2px solid ${color.stroke}`}}/>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-sm text-slate-900 truncate">{zone.name}</div>
+                            <div className="flex items-center gap-2 mt-1 text-[10px]">
+                              <span className="font-mono font-bold" style={{color: color.stroke}}>{pct}%</span>
+                              <span className="text-slate-500">{completedIsos}/{totalIsos} ISOs</span>
+                            </div>
+                            {deadlineDate && (
+                              <div className={`text-[10px] mt-0.5 font-semibold ${daysLeft < 0 ? "text-red-600" : daysLeft < 7 ? "text-amber-600" : "text-slate-500"}`}>
+                                {daysLeft < 0 ? `⚠ ${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left (${deadlineDate.toLocaleDateString("en-US", {month:"short", day:"numeric"})})`}
+                              </div>
+                            )}
+                            <div className="w-full h-1 bg-slate-200 rounded-full mt-1.5 overflow-hidden"><div className="h-full transition-all" style={{width: `${pct}%`, background: color.stroke}}/></div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* === SELECTED ZONE DETAILS === */}
+      {selectedZone && (
+        <div className="bg-white border-2 border-blue-700 rounded-lg p-4 shadow-lg">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-5 h-5 rounded" style={{background: getZoneColor(selectedZone).fill, border: `2px solid ${getZoneColor(selectedZone).stroke}`}}/>
+                <h3 className="text-lg font-black text-slate-900">{selectedZone.name}</h3>
+                <span className="text-[10px] font-bold tracking-widest px-2 py-0.5 rounded" style={{background: getZoneColor(selectedZone).fill, color: getZoneColor(selectedZone).stroke}}>
+                  {getZoneColor(selectedZone).label}
+                </span>
+              </div>
+              {selectedZone.description && <p className="text-xs text-slate-600">{selectedZone.description}</p>}
+            </div>
+            <div className="flex gap-1">
+              <button onClick={() => setShowZoneModal(selectedZone)} className="text-slate-500 hover:text-blue-700 p-1.5 hover:bg-blue-50 rounded"><Edit2 size={14} /></button>
+              <button onClick={() => { onDeleteZone(selectedZone.id); setSelectedZoneId(null); }} className="text-slate-500 hover:text-red-600 p-1.5 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+              <button onClick={() => setSelectedZoneId(null)} className="text-slate-500 hover:text-slate-700 p-1.5 hover:bg-slate-100 rounded"><X size={14} /></button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <div className="bg-slate-50 border border-slate-200 rounded p-2 text-center">
+              <div className="text-xl font-black text-blue-700">{getZoneProgress(selectedZone).pct}%</div>
+              <div className="text-[9px] text-slate-500 tracking-widest font-bold">COMPLETE</div>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded p-2 text-center">
+              <div className="text-xl font-black text-slate-900">{getZoneProgress(selectedZone).completedWelds}<span className="text-sm text-slate-400">/{getZoneProgress(selectedZone).totalWelds}</span></div>
+              <div className="text-[9px] text-slate-500 tracking-widest font-bold">WELDS</div>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded p-2 text-center">
+              <div className="text-xl font-black text-slate-900">{(selectedZone.isoIds || []).length}</div>
+              <div className="text-[9px] text-slate-500 tracking-widest font-bold">ISOs</div>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded p-2 text-center">
+              <div className="text-xl font-black text-slate-900">{selectedZone.deadline ? new Date(selectedZone.deadline).toLocaleDateString("en-US", {month:"short", day:"numeric"}) : "—"}</div>
+              <div className="text-[9px] text-slate-500 tracking-widest font-bold">DEADLINE</div>
+            </div>
+          </div>
+
+          {/* ISOs list */}
+          {(selectedZone.isoIds || []).length > 0 && (
+            <div className="mb-4">
+              <div className="text-[10px] font-bold tracking-widest text-slate-700 mb-2">ASSIGNED ISOs</div>
+              <div className="space-y-1">
+                {(selectedZone.isoIds || []).map((isoId) => {
+                  const iso = isos.find((i) => i.id === isoId);
+                  if (!iso) return null;
+                  const isoLogs = dailyLogs.filter((l) => l.entries.some((e) => e.iso === iso.number));
+                  const isoEntries = isoLogs.flatMap((l) => l.entries.filter((e) => e.iso === iso.number).map((e) => ({...e, logId: l.id})));
+                  const accepted = isoEntries.filter((e) => inspections.find((i) => i.weldRef === `${e.logId}-${e.id}` && i.status === "accepted")).length;
+                  const isoP = isoEntries.length === 0 ? 0 : Math.round((accepted / isoEntries.length) * 100);
+                  return (
+                    <div key={isoId} className="flex items-center gap-2 text-xs bg-slate-50 px-2 py-1.5 rounded">
+                      <span className="font-mono text-blue-700 font-bold flex-1 truncate">{iso.number}</span>
+                      <span className="text-slate-500">{accepted}/{isoEntries.length}</span>
+                      <span className="font-bold text-slate-700 w-10 text-right">{isoP}%</span>
+                      <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-emerald-500" style={{width: `${isoP}%`}}/></div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Photos section */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[10px] font-bold tracking-widest text-slate-700">EVIDENCE PHOTOS ({(selectedZone.photos || []).length})</div>
+              <label className="bg-blue-700 hover:bg-blue-800 text-white text-[10px] font-bold tracking-widest px-2.5 py-1 rounded cursor-pointer transition-colors inline-flex items-center gap-1">
+                <Upload size={10} /> ADD PHOTO
+                <input type="file" accept="image/*" onChange={(e) => handlePhotoUpload(selectedZone.id, e)} className="hidden" />
+              </label>
+            </div>
+            {(selectedZone.photos || []).length === 0 ? (
+              <div className="bg-slate-50 border border-dashed border-slate-200 rounded p-4 text-center text-xs text-slate-400 italic">No photos yet. Add evidence photos of the completed work.</div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {(selectedZone.photos || []).map((photo) => (
+                  <div key={photo.id} className="relative group">
+                    <img src={photo.url} alt={photo.caption} className="w-full h-24 object-cover rounded border border-slate-200"/>
+                    <button onClick={() => { if (confirm("Delete this photo?")) onDeletePhoto(selectedZone.id, photo.id); }} className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs">×</button>
+                    {photo.caption && <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[9px] px-1 py-0.5 truncate">{photo.caption}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* === MODALS === */}
+      {showSetupModal && (
+        <ProjectSetupModal project={project} onSave={(data) => { onSaveProject({ ...project, ...data }); setShowSetupModal(false); }} onClose={() => setShowSetupModal(false)} onReplacePlan={() => fileInputRef.current?.click()} />
+      )}
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFloorPlanUpload} className="hidden" />
+      {showZoneModal && (
+        <ZoneModal zone={showZoneModal.isNew ? null : showZoneModal} rect={showZoneModal.isNew ? showZoneModal.rect : showZoneModal.rect} isos={isos} onSave={(data) => {
+          if (showZoneModal.isNew) { onAddZone({ ...data, rect: showZoneModal.rect }); }
+          else { onUpdateZone(showZoneModal.id, data); }
+          setShowZoneModal(null);
+        }} onClose={() => setShowZoneModal(null)} />
+      )}
+    </div>
+  );
+}
+
+function ProjectSetupModal({ project, onSave, onClose, onReplacePlan }) {
+  const [name, setName] = useState(project?.name || "");
+  const [client, setClient] = useState(project?.client || "");
+  const [jobNumber, setJobNumber] = useState(project?.jobNumber || "");
+  const submit = () => { if (!name.trim()) { alert("Project name is required"); return; } onSave({ name: name.trim(), client: client.trim(), jobNumber: jobNumber.trim() }); };
+  return (
+    <ModalShell title="EDIT PROJECT" onClose={onClose}>
+      <Field label="PROJECT NAME"><input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} placeholder="e.g. Biotech Facility - Phase 1" autoFocus /></Field>
+      <Field label="CLIENT NAME (OPTIONAL)"><input value={client} onChange={(e) => setClient(e.target.value)} className={inputCls} placeholder="e.g. Pharma Corp" /></Field>
+      <Field label="JOB NUMBER (OPTIONAL)"><input value={jobNumber} onChange={(e) => setJobNumber(e.target.value)} className={inputCls} placeholder="e.g. 24.715.0002" /></Field>
+      <div className="flex gap-2">
+        <button onClick={onReplacePlan} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 text-xs tracking-widest rounded transition-colors flex items-center justify-center gap-2">
+          <Upload size={12} /> REPLACE FLOOR PLAN
+        </button>
+        <button onClick={submit} className="flex-1 bg-blue-700 hover:bg-blue-800 text-white font-bold py-2.5 text-xs tracking-widest rounded transition-colors">SAVE</button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function ZoneModal({ zone, rect, isos, onSave, onClose }) {
+  const [name, setName] = useState(zone?.name || "");
+  const [description, setDescription] = useState(zone?.description || "");
+  const [deadline, setDeadline] = useState(zone?.deadline || "");
+  const [isoIds, setIsoIds] = useState(zone?.isoIds || []);
+  const [search, setSearch] = useState("");
+  const toggleIso = (id) => setIsoIds(isoIds.includes(id) ? isoIds.filter((x) => x !== id) : [...isoIds, id]);
+  const submit = () => { if (!name.trim()) { alert("Zone name is required"); return; } onSave({ name: name.trim(), description: description.trim(), deadline, isoIds }); };
+  const filteredIsos = isos.filter((i) => !search || i.number.toLowerCase().includes(search.toLowerCase()));
+  return (
+    <ModalShell title={zone ? "EDIT ZONE" : "NEW ZONE"} onClose={onClose}>
+      <Field label="ZONE NAME *"><input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} placeholder="e.g. Mezzanine, Clean Room A" autoFocus /></Field>
+      <Field label="DESCRIPTION (OPTIONAL)"><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={inputCls + " resize-none"} placeholder="e.g. HVAC mechanical equipment installation" /></Field>
+      <Field label="DEADLINE"><input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} className={inputCls} /></Field>
+      <Field label={`ASSIGN ISOs (${isoIds.length} selected)`}>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} className={inputCls + " mb-2"} placeholder="Search ISOs..." />
+        <div className="max-h-48 overflow-y-auto border border-slate-200 rounded">
+          {filteredIsos.length === 0 ? (
+            <div className="text-xs text-slate-400 italic p-3 text-center">No ISOs available. Create ISOs first.</div>
+          ) : (
+            filteredIsos.map((iso) => (
+              <label key={iso.id} className="flex items-center gap-2 p-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-b-0">
+                <input type="checkbox" checked={isoIds.includes(iso.id)} onChange={() => toggleIso(iso.id)} />
+                <span className="font-mono text-xs text-blue-700 font-bold flex-1 truncate">{iso.number}</span>
+                <span className="text-[10px] text-slate-500">{iso.size || ""}</span>
+              </label>
+            ))
+          )}
+        </div>
+      </Field>
+      <button onClick={submit} className={btnPrimaryFull}>{zone ? "UPDATE ZONE" : "CREATE ZONE"}</button>
+    </ModalShell>
+  );
+}
 
 function IsoViewerModal({ iso, onClose, onUpdateIso }) {
   const [tool, setTool] = useState("pan");
